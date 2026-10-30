@@ -14,4 +14,4 @@ Proyek aplikasi web untuk membantu meningkatkan fotografi makanan dan minuman de
 
 Persiapan: baca `docs/ROADMAP.md` dan `docs/WORKFLOW.md`. Tidak ada kode aplikasi, deployment, atau hasil benchmark dalam repository ini.
 
-Dokumen sumber, data gambar, catatan operasional internal, dan riwayat proyek lama tidak termasuk dalam repository ini. Pilihan lisensi belum ditentukan.
+Dokumen sumber, data gambar, catatan operasional internal, dan riwayat proyek lama tidak termasuk dalam repository ini. Lisensi: MIT, Copyright (c) 2026 Netora. Lihat [LICENSE](LICENSE).
