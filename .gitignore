@@ -1,0 +1,29 @@
+# Local secrets and environment
+.env
+.env.*
+!.env.example
+
+# Private datasets and project history
+dataset/
+results/
+private/
+internal/
+docs/internal/
+*.docx
+
+# Dependencies and build output
+node_modules/
+.next/
+coverage/
+vendor/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+dist/
+build/
+
+# Local tooling
+.DS_Store
+.worktrees/
+*.log
