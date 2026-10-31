@@ -1,3 +1,30 @@
+# Walkthrough — Hapus Panel Aset, Riwayat Hasil yang Bisa Diunduh
+
+## Perubahan
+- **Panel "Aset dan versi" dihapus total** dari UI (beserta komponen `assets.tsx` + test-nya). Rute backend `assets`, `created-images`, `vision` dilepas dari `web.php`.
+- UI kini **editor-first**: hanya panel **"Edit foto (AI)"** + (untuk super admin) Pengaturan provider.
+- Hasil edit kini **disimpan permanen di server** dan tampil sebagai **Riwayat hasil** yang bisa diunduh.
+
+## Arsitektur riwayat
+- **Disk** `edit_results` (private, `storage/app/edit-results`).
+- **Tabel** `edit_histories` (`user_id`, `instruction`, `path` unik, `mime`, `ext`, `sha256`, `bytes`, timestamps).
+- **Model** `EditHistory` (relasi `belongsTo User`).
+- **Controller** `PhotoEditController`:
+  - `POST /photo-edit`: edit → simpan file + row → balikan gambar inline + metadata.
+  - `GET /photo-edit/history`: daftar 50 terbaru milik user (metadata saja).
+  - `GET /photo-edit/history/{history}/download`: stream gambar, **di-scope ke pemilik** (404 jika bukan milik user).
+- **Frontend** `photo-editor.tsx`: muat riwayat saat mount, tampilkan thumbnail + tombol **Unduh** per item; hasil terbaru langsung masuk riwayat.
+- nginx regex `photo-edit(/|$)` sudah mencakup sub-path history.
+
+## Verifikasi nyata (server)
+- Migration: tabel `edit_histories` **OK**.
+- `POST /photo-edit` → `200`, tersimpan (id=1).
+- `GET /photo-edit/history` → `200`, list berisi instruksi + metadata.
+- `GET /photo-edit/history/1/download` → `200`, JPEG 1024×1024 (547KB).
+- Lokal: 10/10 vitest lulus, PHP lint bersih, `next build` sukses.
+
+---
+
 # Walkthrough — Editor Foto Gaya ChatGPT (stateless)
 
 ## Apa ini
