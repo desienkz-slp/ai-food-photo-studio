@@ -112,7 +112,10 @@ run git -C "$RELEASE_DIR" rev-parse HEAD
 if [[ "$DRY_RUN" == 0 ]]; then
   SQLITE_DB="$APP_ROOT/shared/database/database.sqlite"
   touch "$SQLITE_DB"
-  chown www-data:www-data "$SQLITE_DB"
+  # SQLite needs write access to the *directory* (for -wal/-journal temp files),
+  # not just the db file; otherwise writes fail with "readonly database".
+  chown -R www-data:www-data "$APP_ROOT/shared/database"
+  chmod 0775 "$APP_ROOT/shared/database"
   chmod 0664 "$SQLITE_DB"
   if [[ ! -f "$ENV_FILE" ]]; then
     log "generating $ENV_FILE from .env.example"
