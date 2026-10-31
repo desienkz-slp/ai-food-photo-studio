@@ -1,3 +1,34 @@
+# Walkthrough — Setting Model Vision & Buat Gambar (commit `43b7481`)
+
+## Di mana tempat setting-nya?
+Panel **"Pengaturan provider"** (hanya superadmin). Sekarang ada **3 field model** terpisah:
+- **Model edit gambar** → `images/edits` (image-to-image)
+- **Model buat gambar (text-to-image)** → `images/generations`
+- **Model vision (analisis foto)** → `chat/completions` multimodal
+
+## Backend
+- **Migration** `2026_11_01_000018`: kolom nullable `model_create`, `model_vision` di `provider_configurations`.
+- **`ProviderConfigurationController`**: validasi + simpan dua field baru (partial-safe: key tak dikirim = nilai lama dipertahankan).
+- **`AiImageCreator`**: `POST /images/generations` pakai `model_create`, bounded timeout, fail-closed.
+- **`AiVisionAnalyzer`**: `POST /chat/completions` (image_url data URI) pakai `model_vision`.
+- **`ImageCreateController`** (`POST /workspaces/{ws}/created-images`): buat gambar dari teks → simpan sebagai asset committed (sha256 terverifikasi) → masuk pipeline versi/approval/export.
+- **`VisionController`** (`POST /workspaces/{ws}/assets/{asset}/vision`): analisis foto, kembalikan teks.
+- Rute create/vision di-throttle `10,1`.
+
+## Frontend
+- 3 field model di panel provider (prefill saat "Muat pengaturan").
+- Panel **"Buat gambar dari teks"**: textarea deskripsi + ukuran + tombol "Buat gambar".
+- Tombol **"Analisis foto (vision)"** per aset + output teksnya.
+
+## Verifikasi nyata (server, `43b7481`)
+- Kolom `model_create`, `model_vision` ada. Save roundtrip `200`, DB readback cocok (`dall-e-create`, `gpt-vision`).
+- Lokal: 16/16 vitest lulus, PHP lint bersih, `next build` sukses.
+
+## Aktivasi
+Butuh `MODEL_PROVIDER_EDITING_ENABLED=true` untuk editing; create & vision selalu panggil provider (butuh model + API key valid terisi). Tanpa model create/vision terisi → endpoint balas `502` dengan pesan jelas.
+
+---
+
 # Walkthrough — Fase 4: Variasi, Ukuran, Riwayat (commit `c2ed72b`)
 
 - **Migration** `2026_11_01_000017`: kolom nullable `size` di `processing_jobs`.
