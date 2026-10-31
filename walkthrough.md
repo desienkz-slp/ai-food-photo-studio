@@ -1,4 +1,39 @@
-# Walkthrough — Provider Global (dikelola superadmin)
+# Walkthrough — Editing Gambar AI (Fase 1–3, commit `a55614f`)
+
+Pipeline aset diubah dari identity-only (output `.rgb` mentah) menjadi editing gambar AI gaya "GPT image panel".
+
+## Backend
+- **Migration non-destruktif** `2026_11_01_000016`: tambah kolom nullable `output_mime`, `output_ext`, `prompt` di `processing_jobs`. Baris lama tetap valid.
+- **Kontrak `ImageEditor`** + value object `EditedImage` (bytes + mime + ext).
+- **`LocalIdentityCompositor`** kini implement `ImageEditor` dan mengeluarkan **PNG nyata** (verifikasi identitas piksel via worker Python tetap jalan). Ini fallback aman.
+- **`AiImageEditor`** baru: panggil provider OpenAI-compatible `POST {endpoint}/images/edits` (multipart image+prompt+model), `response_format=b64_json`. Timeout tegas: connect 5s, total 60s. Fail-closed (error → job `failed`, tak commit output). Tanpa prompt → fallback identity.
+- **Feature flag** `services.model_providers.editing_enabled` (`MODEL_PROVIDER_EDITING_ENABLED`). Default `false` → identity. `AppServiceProvider` bind `ImageEditor` sesuai flag.
+- **`ProcessingJobController`**: terima `prompt` (maks 2000), pakai `ImageEditor`, simpan PNG + mime/ext, verifikasi SHA-256.
+- **`ImageServeController`** baru: `GET .../assets/{asset}/image` (asli) & `GET .../assets/{asset}/processing-jobs/{job}/output` (hasil). Verifikasi SHA sebelum serve, `nosniff`, `private, no-store`.
+- **Export download**: serve dengan mime gambar asli (png/jpg) bila dikenali.
+
+## Frontend
+- **Image viewer**: preview foto asli per aset + preview hasil AI per kandidat (`<img>` ke endpoint serve).
+- **Kolom prompt**: textarea "Instruksi edit AI (opsional)" per draft; tombol "Proses & setujui". Prompt dikirim ke processing-job.
+- CSS classic baru: `.image-preview`, `.prompt-field`.
+
+## Verifikasi nyata (server, commit `a55614f`)
+- Migration terpasang: kolom `output_mime, output_ext, prompt` ada di `processing_jobs`.
+- E2E alur: upload=201, versi=201, proses=201, job `succeeded`.
+- **Output = PNG nyata** (`output_mime=image/png`, `file` → `PNG image data`).
+- Serve gambar asli & hasil: `Content-Type: image/png` + `X-Content-Type-Options: nosniff`.
+- Lokal: frontend 16/16 vitest lulus, PHP lint bersih, `next build` sukses.
+
+## Cara mengaktifkan editing AI nyata
+1. Superadmin isi provider (endpoint OpenAI-compatible + **API key valid** + model gambar).
+2. Set env server `MODEL_PROVIDER_EDITING_ENABLED=true`, restart backend.
+3. Upload foto → isi prompt → "Proses & setujui". Tanpa langkah 2, sistem tetap identity (hasil = asli).
+
+## Catatan Fase 4 (belum)
+Variasi/N-kandidat, pilihan ukuran, dan riwayat prompt belum dibuat (opsional, menyusul).
+
+---
+
 
 ## Perubahan arsitektur provider (commit `3897b50`)
 Provider AI kini **global**: diatur hanya oleh superadmin, dipakai semua tenant.
