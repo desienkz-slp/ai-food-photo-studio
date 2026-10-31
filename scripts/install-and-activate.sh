@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# One-file native installer/activator for Debian/Ubuntu.
+# Explicitly run after reviewing the release. Never run from git hooks.
+# Required external config: /etc/food-photo-studio/backend.env
+# Optional: RUN_MIGRATIONS=1 to approve database migrations explicitly.
+
+REPO_URL="${REPO_URL:-https://github.com/desienkz-slp/ai-food-photo-studio.git}"
+REPO_REF="${REPO_REF:-main}"
+APP_ROOT="${APP_ROOT:-/opt/food-photo-studio}"
+RELEASE_ID="${RELEASE_ID:-$(date -u +%Y%m%d%H%M%S)}"
+DOMAIN="${DOMAIN:-172.18.20.148}"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-0}"
+DRY_RUN="${DRY_RUN:-0}"
+ENV_FILE="${ENV_FILE:-/etc/food-photo-studio/backend.env}"
+RELEASE_DIR="$APP_ROOT/releases/$RELEASE_ID"
+CURRENT_LINK="$APP_ROOT/current"
+
+log() { printf '[food-photo-studio] %s\n' "$*"; }
+fail() { printf '[food-photo-studio] ERROR: %s\n' "$*" >&2; exit 1; }
+run() { if [[ "$DRY_RUN" == 1 ]]; then printf '+ '; printf '%q ' "$@"; printf '\n'; else "$@"; fi; }
+write_file() { local path="$1"; shift; if [[ "$DRY_RUN" == 1 ]]; then log "would write $path"; else install -D -m 0644 /dev/stdin "$path" <<<"$*"; fi; }
+
+usage() {
+  cat <<EOF
+Usage: sudo ./scripts/install-and-activate.sh [--dry-run]
+
+Environment:
+  REPO_URL, REPO_REF, APP_ROOT, RELEASE_ID, DOMAIN
+  ENV_FILE (default: /etc/food-photo-studio/backend.env)
+  RUN_MIGRATIONS=1 (explicitly permits php artisan migrate --force)
+  DRY_RUN=1 (no host changes)
+EOF
+}
+[[ "${1:-}" != "--help" ]] || { usage; exit 0; }
+[[ "$DRY_RUN" == 0 || "$DRY_RUN" == 1 ]] || fail 'DRY_RUN must be 0 or 1'
+[[ "$RUN_MIGRATIONS" == 0 || "$RUN_MIGRATIONS" == 1 ]] || fail 'RUN_MIGRATIONS must be 0 or 1'
+[[ "$RELEASE_ID" =~ ^[A-Za-z0-9._-]+$ ]] || fail 'invalid RELEASE_ID'
+if [[ "$DRY_RUN" == 0 && "$(id -u)" != 0 ]]; then fail 'run as root or use DRY_RUN=1'; fi
+
+if command -v apt-get >/dev/null 2>&1; then
+  run apt-get update
+  run env DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip nginx php8.3-fpm php8.3-cli php8.3-gd php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip composer nodejs npm
+else
+  [[ "$DRY_RUN" == 1 ]] || fail 'Debian/Ubuntu apt-get is required'
+  log 'apt-get not found locally; dry-run only'
+fi
+
+run install -d -m 0755 "$APP_ROOT/releases" "$APP_ROOT/shared" /etc/food-photo-studio
+if [[ "$DRY_RUN" == 0 ]]; then
+  [[ -f "$ENV_FILE" ]] || fail "missing external config: $ENV_FILE"
+  chmod 0640 "$ENV_FILE"
+  chown root:www-data "$ENV_FILE"
+fi
+run git clone --branch "$REPO_REF" "$REPO_URL" "$RELEASE_DIR"
+run git -C "$RELEASE_DIR" rev-parse HEAD
+run "$RELEASE_DIR/scripts/install-release.sh" --install
+
+if [[ "$RUN_MIGRATIONS" == 1 ]]; then
+  run bash -c "cd '$RELEASE_DIR/backend' && set -a && . '$ENV_FILE' && set +a && php artisan migrate --force"
+fi
+
+backend_unit="[Unit]
+Description=AI Food Photo Studio Laravel API
+After=network.target
+[Service]
+Type=simple
+WorkingDirectory=$RELEASE_DIR/backend
+EnvironmentFile=$ENV_FILE
+ExecStart=/usr/bin/php artisan serve --host=127.0.0.1 --port=$BACKEND_PORT
+Restart=on-failure
+RestartSec=5
+User=www-data
+[Install]
+WantedBy=multi-user.target"
+frontend_unit="[Unit]
+Description=AI Food Photo Studio Next.js UI
+After=network.target
+[Service]
+Type=simple
+WorkingDirectory=$RELEASE_DIR/frontend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1 --port $FRONTEND_PORT
+Restart=on-failure
+RestartSec=5
+User=www-data
+[Install]
+WantedBy=multi-user.target"
+nginx_conf="server {
+    listen 80 default_server;
+    server_name $DOMAIN _;
+    client_max_body_size 25M;
+    location /api/ {
+        proxy_pass http://127.0.0.1:$BACKEND_PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location /sanctum/ { proxy_pass http://127.0.0.1:$BACKEND_PORT; proxy_set_header Host \$host; }
+    location / {
+        proxy_pass http://127.0.0.1:$FRONTEND_PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+    }
+}"
+write_file /etc/systemd/system/food-photo-backend.service "$backend_unit"
+write_file /etc/systemd/system/food-photo-frontend.service "$frontend_unit"
+write_file /etc/nginx/sites-available/food-photo-studio "$nginx_conf"
+run ln -sfn /etc/nginx/sites-available/food-photo-studio /etc/nginx/sites-enabled/food-photo-studio
+run rm -f /etc/nginx/sites-enabled/default
+run nginx -t
+run ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
+run systemctl daemon-reload
+run systemctl enable --now food-photo-backend food-photo-frontend nginx
+
+if [[ "$DRY_RUN" == 1 ]]; then
+  log 'dry-run complete; no host changes made'
+else
+  log "release active at $CURRENT_LINK"
+  log 'health checks: curl -fsS http://127.0.0.1/ and curl -fsS http://127.0.0.1:8000/up'
+  log 'migrations were not run unless RUN_MIGRATIONS=1 was supplied'
+fi
