@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 
-type Provider = { type: string; communication_mode?: string; model: string; name?: string; endpoint?: string }
+type Provider = { type: string; communication_mode?: string; model: string; model_create?: string; model_vision?: string; name?: string; endpoint?: string }
 
 function csrfToken() {
   const value = document.cookie.split('; ').find((item) => item.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length)
@@ -19,6 +19,8 @@ export function ProviderSettings() {
   const [name, setName] = useState('')
   const [endpoint, setEndpoint] = useState('')
   const [model, setModel] = useState('')
+  const [modelCreate, setModelCreate] = useState('')
+  const [modelVision, setModelVision] = useState('')
   const [modelOptions, setModelOptions] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -41,7 +43,7 @@ export function ProviderSettings() {
       if (!response.ok) { setError(failure(response.status)); return }
       const result = await response.json()
       if (!Array.isArray(result.data) || !result.data.every((item: Provider) => typeof item.type === 'string' && typeof item.model === 'string')) throw new Error()
-      const saved: Provider[] = result.data.map((item: Provider) => ({ type: item.type, model: item.model, name: item.name, endpoint: item.endpoint, communication_mode: item.communication_mode }))
+      const saved: Provider[] = result.data.map((item: Provider) => ({ type: item.type, model: item.model, model_create: item.model_create, model_vision: item.model_vision, name: item.name, endpoint: item.endpoint, communication_mode: item.communication_mode }))
       setProviders(saved)
       // Pre-fill the form with the current (single, global) provider so edits
       // start from what is stored. API key is never returned; leave it blank.
@@ -49,6 +51,8 @@ export function ProviderSettings() {
       if (current) {
         setType(current.type)
         setModel(current.model)
+        setModelCreate(current.model_create || '')
+        setModelVision(current.model_vision || '')
         if (current.name) setName(current.name)
         if (current.endpoint) setEndpoint(current.endpoint)
         if (current.communication_mode) setMode(current.communication_mode)
@@ -81,7 +85,7 @@ export function ProviderSettings() {
     if (!key && !providers.some((provider) => provider.type === type)) { setError('API key diperlukan untuk provider baru.'); return }
     setBusy(true); setError(''); setMessage('')
     try {
-      const response = await fetch(url, { method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token }, body: JSON.stringify({ type, communication_mode: mode, model: model.trim(), ...(name.trim() ? { name: name.trim() } : {}), ...(endpoint.trim() ? { endpoint: endpoint.trim() } : {}), ...(key ? {api_key: key} : {}) }) })
+      const response = await fetch(url, { method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token }, body: JSON.stringify({ type, communication_mode: mode, model: model.trim(), model_create: modelCreate.trim(), model_vision: modelVision.trim(), ...(name.trim() ? { name: name.trim() } : {}), ...(endpoint.trim() ? { endpoint: endpoint.trim() } : {}), ...(key ? {api_key: key} : {}) }) })
       if (!response.ok) { if (response.status === 401 || response.status === 403 || response.status === 419) setProviders(null); setError(failure(response.status)); return }
       const result = await response.json()
       if (result.data?.type !== type || result.data?.model !== model.trim()) throw new Error()
@@ -102,7 +106,9 @@ export function ProviderSettings() {
       <label>Tipe provider<select value={type} onChange={(event) => setType(event.target.value)}><option value="">Pilih tipe provider</option><option value="openai-compatible">Kompatibel OpenAI</option><option value="other">Lainnya</option></select></label>
       <label>Tipe komunikasi<select value={mode} onChange={(event) => setMode(event.target.value)}><option value="chat">Chat</option><option value="message">Message</option><option value="response">Response</option></select></label>
       <label>API key<input ref={keyRef} name="api-key" type="password" autoComplete="new-password" maxLength={4096} /></label>
-      <label>Model manual<input value={model} onChange={(event) => setModel(event.target.value)} maxLength={255} list="provider-model-options" /></label>
+      <label>Model edit gambar<input value={model} onChange={(event) => setModel(event.target.value)} maxLength={255} list="provider-model-options" /></label>
+      <label>Model buat gambar (text-to-image)<input value={modelCreate} onChange={(event) => setModelCreate(event.target.value)} maxLength={255} list="provider-model-options" /></label>
+      <label>Model vision (analisis foto)<input value={modelVision} onChange={(event) => setModelVision(event.target.value)} maxLength={255} list="provider-model-options" /></label>
       {modelOptions.length > 0 && <datalist id="provider-model-options">{modelOptions.map((item) => <option key={item} value={item} />)}</datalist>}
       <p>Klik “Muat model” untuk mengambil daftar dari provider (butuh pengaturan tersimpan). Anda tetap boleh mengetik model manual. API key kosong mempertahankan key sebelumnya.</p>
       <div className="provider-actions"><button type="button" disabled={busy || !type || !providers?.some((provider) => provider.type === type)} onClick={loadModels}>{busy ? 'Memuat…' : 'Muat model'}</button><button type="submit" disabled={!providers || busy}>{busy ? 'Memproses…' : 'Simpan pengaturan'}</button></div>

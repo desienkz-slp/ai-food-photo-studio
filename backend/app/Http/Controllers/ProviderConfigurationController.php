@@ -49,6 +49,8 @@ class ProviderConfigurationController extends Controller
                 }
             }],
             'model' => ['required', 'string', 'max:255'],
+            'model_create' => ['nullable', 'string', 'max:255'],
+            'model_vision' => ['nullable', 'string', 'max:255'],
             'api_key' => ['nullable', 'string', 'max:4096'],
         ]);
         $provider = ProviderConfiguration::firstOrNew(['type' => $data['type']]);
@@ -59,6 +61,10 @@ class ProviderConfigurationController extends Controller
         $provider->type = $data['type'];
         $provider->communication_mode = $data['communication_mode'] ?? $provider->communication_mode ?? 'chat';
         $provider->model = $data['model'];
+        // Capability models are optional; only overwrite when a key is sent so
+        // a partial save never clears a previously stored value.
+        if (array_key_exists('model_create', $data)) { $provider->model_create = $data['model_create']; }
+        if (array_key_exists('model_vision', $data)) { $provider->model_vision = $data['model_vision']; }
         $provider->name = $data['name'] ?? $provider->name;
         $provider->endpoint = $data['endpoint'] ?? $provider->endpoint;
         if (isset($data['api_key']) && $data['api_key'] !== '') {

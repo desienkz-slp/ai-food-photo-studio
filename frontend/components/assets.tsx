@@ -17,6 +17,9 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
   const [prompts, setPrompts] = useState<Record<number, string>>({})
   const [sizes, setSizes] = useState<Record<number, string>>({})
   const [history, setHistory] = useState<Record<number, Candidate[]>>({})
+  const [createPrompt, setCreatePrompt] = useState('')
+  const [createSize, setCreateSize] = useState('')
+  const [analysis, setAnalysis] = useState<Record<number, string>>({})
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadKey, setUploadKey] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -57,6 +60,30 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
     if (!response.ok) return
     const { data } = await response.json()
     if (Array.isArray(data)) setHistory(previous => ({ ...previous, [version.id]: data }))
+  }
+  async function createImage() {
+    if (!workspace || busy || !createPrompt.trim()) return
+    setBusy(true); setError('')
+    try {
+      const body: Record<string, string> = { prompt: createPrompt.trim() }
+      if (createSize) body.size = createSize
+      const response = await fetch(`/workspaces/${workspace}/created-images`, { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': tokenFromCookie() }, body: JSON.stringify(body) })
+      if (!response.ok) { setError(response.status === 502 ? 'Gambar tidak dapat dibuat. Periksa model buat gambar.' : 'Pembuatan gambar gagal.'); return }
+      setCreatePrompt('')
+      await load()
+    } catch { setError('Pembuatan gambar gagal. Periksa sesi dan koneksi.') }
+    finally { setBusy(false) }
+  }
+  async function analyzeImage(asset: Asset) {
+    if (busy) return
+    setBusy(true); setError('')
+    try {
+      const response = await fetch(`/workspaces/${workspace}/assets/${asset.id}/vision`, { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': tokenFromCookie() }, body: '{}' })
+      if (!response.ok) { setError(response.status === 502 ? 'Analisis gagal. Periksa model vision.' : 'Analisis gambar gagal.'); return }
+      const { data } = await response.json()
+      if (data && typeof data.analysis === 'string') setAnalysis(previous => ({ ...previous, [asset.id]: data.analysis }))
+    } catch { setError('Analisis gambar gagal. Periksa sesi dan koneksi.') }
+    finally { setBusy(false) }
   }
   function tokenFromCookie() {
     const raw = document.cookie.split('; ').find(item => item.startsWith('XSRF-TOKEN='))?.slice(11)
@@ -115,9 +142,12 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
       <button type="button" disabled={!workspace || !selectedFile || busy} onClick={upload}>Unggah foto</button>
     </> : <button type="button" disabled>Unggah foto</button>}
     <button type="button" disabled={!workspace || busy} onClick={load}>Muat aset</button>
+    {workspaces.length > 0 && <div className="create-panel"><h3>Buat gambar dari teks</h3><label className="prompt-field">Deskripsi gambar<textarea value={createPrompt} maxLength={2000} disabled={!workspace || busy} placeholder="mis. nasi goreng seafood di piring hitam, cahaya studio, latar gelap" onChange={e => setCreatePrompt(e.target.value)} /></label> <label className="size-field">Ukuran<select value={createSize} disabled={busy} onChange={e => setCreateSize(e.target.value)}><option value="">Default</option><option value="512x512">512×512</option><option value="1024x1024">1024×1024</option></select></label> <button type="button" disabled={!workspace || busy || !createPrompt.trim()} onClick={createImage}>Buat gambar</button></div>}
     {error && <p role="alert">{error}</p>}
     {assets && (assets.length ? <ul>{assets.map(a => <li key={a.id}><span>Aset #{a.id} — {a.status || 'committed'}</span>
       <div className="image-preview"><img src={`/workspaces/${workspace}/assets/${a.id}/image`} alt={`Foto asli Aset #${a.id}`} loading="lazy" /></div>
+      <button type="button" disabled={busy} onClick={() => analyzeImage(a)}>Analisis foto (vision)</button>
+      {analysis[a.id] && <p className="vision-output">{analysis[a.id]}</p>}
       {a.versions.length === 0 && <button type="button" disabled={busy} onClick={() => createVersion(a)}>Buat versi Aset #{a.id}</button>}<ul>{a.versions.map(v => <li key={v.id}>{v.label || `Versi #${v.id}`} — {v.status}
         {v.status === 'draft' && <><label className="prompt-field">Instruksi edit AI (opsional)<textarea value={prompts[v.id] || ''} maxLength={2000} disabled={busy} placeholder="mis. latar kayu rustic, cahaya hangat, uap mengepul" onChange={e => setPrompts(previous => ({ ...previous, [v.id]: e.target.value }))} /></label> <label className="size-field">Ukuran<select value={sizes[v.id] || ''} disabled={busy} onChange={e => setSizes(previous => ({ ...previous, [v.id]: e.target.value }))}><option value="">Default</option><option value="512x512">512×512</option><option value="1024x1024">1024×1024</option></select></label> <button type="button" disabled={busy} onClick={() => action(a, v, 'approval')}>Proses & setujui {v.label || `Versi #${v.id}`}</button> <button type="button" disabled={busy} onClick={() => loadHistory(a, v)}>Muat variasi</button></>}
         {history[v.id] && history[v.id].length > 0 && <div className="variation-grid">{history[v.id].map(c => <figure key={c.id} className="image-preview"><img src={`/workspaces/${workspace}/assets/${a.id}/processing-jobs/${c.id}/output`} alt={`Variasi #${c.id}`} loading="lazy" /><figcaption>{c.size || 'default'}{c.prompt ? ` — ${c.prompt}` : ''}</figcaption></figure>)}</div>}

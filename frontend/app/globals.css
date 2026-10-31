@@ -418,6 +418,25 @@ a[href]:hover { color: var(--burgundy-deep); border-bottom-color: var(--burgundy
   word-break: break-word;
 }
 
+.create-panel {
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: #fbf5e8;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+  border-radius: 2px;
+}
+.create-panel h3 { margin: 0 0 8px; font-size: 15px; }
+.vision-output {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: #fffdf7;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
 @media (max-width: 560px) {
   .workspace { padding: 48px 18px 72px; }
   .card { padding: 26px 20px; }
