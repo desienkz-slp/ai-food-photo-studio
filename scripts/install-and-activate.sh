@@ -11,6 +11,7 @@ REPO_REF="${REPO_REF:-main}"
 APP_ROOT="${APP_ROOT:-/opt/food-photo-studio}"
 RELEASE_ID="${RELEASE_ID:-$(date -u +%Y%m%d%H%M%S)}"
 DOMAIN="${DOMAIN:-172.18.20.148}"
+PUBLIC_PORT="${PUBLIC_PORT:-8089}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-0}"
@@ -90,7 +91,7 @@ User=www-data
 [Install]
 WantedBy=multi-user.target"
 nginx_conf="server {
-    listen 80 default_server;
+    listen $PUBLIC_PORT default_server;
     server_name $DOMAIN _;
     client_max_body_size 25M;
     location /api/ {

@@ -20,6 +20,7 @@ Untuk memasang dependency OS, clone release, build aplikasi, membuat service sys
 
 - Server Debian/Ubuntu dengan akses `root`/`sudo`, akses outbound ke GitHub dan repository.
 - DNS atau alamat host yang akan dipakai pengguna.
+- Port publik default: `8089` (akses langsung: `http://<server-host>:8089/`). Dapat diubah dengan `PUBLIC_PORT`.
 - Backup database dan storage sebelum migration/aktivasi.
 - Siapkan konfigurasi aplikasi di luar Git; jangan commit `.env`, password, token, API key, atau connection string.
 - Script saat ini mengasumsikan package manager `apt-get` dan nama paket PHP 8.3 tersedia pada repository OS.
@@ -57,7 +58,7 @@ Minimal, sesuaikan nilai yang diwajibkan oleh `backend/.env.example`, termasuk `
 ### 4. Dry-run
 
 ```sh
-sudo DRY_RUN=1 RELEASE_ID=$(date -u +%Y%m%d%H%M%S) \
+sudo DRY_RUN=1 PUBLIC_PORT=8089 RELEASE_ID=$(date -u +%Y%m%d%H%M%S) \
   ./scripts/install-and-activate.sh --dry-run
 ```
 
@@ -68,7 +69,7 @@ Dry-run tidak memasang paket, clone, menulis konfigurasi, membuat service, migra
 Setelah backup, konfigurasi, dan rollback plan disetujui:
 
 ```sh
-sudo RELEASE_ID=$(date -u +%Y%m%d%H%M%S) \
+sudo PUBLIC_PORT=8089 RELEASE_ID=$(date -u +%Y%m%d%H%M%S) \
   ./scripts/install-and-activate.sh
 ```
 
@@ -98,11 +99,12 @@ Jangan mengaktifkan migration berulang tanpa memahami status database. Script ti
 ```sh
 sudo systemctl status food-photo-backend food-photo-frontend nginx --no-pager
 sudo journalctl -u food-photo-backend -u food-photo-frontend -n 100 --no-pager
-curl -fsS http://127.0.0.1/
+curl -fsS http://127.0.0.1:8089/
 curl -fsS http://127.0.0.1:8000/up
+# akses dari client: http://172.18.20.148:8089/
 ```
 
-Kemudian akses dari browser menggunakan `http://<server-host>/`. Jika health check gagal, jangan hapus release lama; hentikan aktivasi dan rollback symlink ke release sebelumnya.
+Kemudian akses dari browser menggunakan `http://<server-host>:8089/`. Jika health check gagal, jangan hapus release lama; hentikan aktivasi dan rollback symlink ke release sebelumnya.
 
 ### 8. Rollback
 
