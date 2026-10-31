@@ -120,9 +120,11 @@ if [[ "$DRY_RUN" == 0 ]]; then
       -e 's#^DB_CONNECTION=.*#DB_CONNECTION=sqlite#' \
       "$RELEASE_DIR/backend/.env.example" > "$ENV_FILE"
     printf 'DB_DATABASE=%s\n' "$SQLITE_DB" >> "$ENV_FILE"
-    # APP_KEY must be generated against this env file.
-    (cd "$RELEASE_DIR/backend" && set -a && . "$ENV_FILE" && set +a && php artisan key:generate --show) \
-      | sed 's#[&/\]#\\&#g' | { read -r appkey; sed -i "s#^APP_KEY=.*#APP_KEY=${appkey}#" "$ENV_FILE"; }
+    # Generate APP_KEY with openssl so this does not depend on composer vendor/
+    # being installed yet (artisan needs the framework). Laravel expects
+    # base64:<32 random bytes base64-encoded>.
+    appkey="base64:$(openssl rand -base64 32)"
+    sed -i "s#^APP_KEY=.*#APP_KEY=${appkey}#" "$ENV_FILE"
   fi
   chmod 0640 "$ENV_FILE"
   chown root:www-data "$ENV_FILE"
