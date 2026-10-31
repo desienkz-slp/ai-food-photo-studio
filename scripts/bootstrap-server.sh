@@ -63,13 +63,24 @@ if command -v apt-get >/dev/null 2>&1; then
   run apt-get update
   run env DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip nginx php8.3-fpm php8.3-cli php8.3-gd php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip composer nodejs npm
 else
-  echo 'Unsupported package manager: expected apt-get (Debian/Ubuntu).' >&2; exit 1
+  if [[ "$dry_run" == 1 ]]; then
+    echo '+ apt-get update/install required (host package manager not available locally)'
+  else
+    echo 'Unsupported package manager: expected apt-get (Debian/Ubuntu).' >&2; exit 1
+  fi
 fi
 
 run install -d -m 0755 "$app_root/releases" "$app_root/shared"
 release_dir="$app_root/releases/$release"
 run git clone --branch "$ref" "$repo" "$release_dir"
 run "$release_dir/scripts/install-release.sh" --install
+
+if [[ "$dry_run" == 1 ]]; then
+  echo '+ nginx reverse proxy configuration (not written in dry-run)'
+  echo '+ systemctl daemon-reload enable --now food-photo-backend food-photo-frontend nginx'
+  echo 'DRY RUN complete; no host changes made.'
+  exit 0
+fi
 
 write_unit food-photo-backend '[Unit]
 Description=AI Food Photo Studio Laravel backend
