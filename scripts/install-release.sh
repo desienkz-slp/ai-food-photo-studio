@@ -32,8 +32,8 @@ if [[ "${DRY_RUN:-0}" == 1 ]]; then
     'frontend: npm ci --ignore-scripts' 'frontend: npm run build'
   exit 0
 fi
-php -r 'exit(PHP_VERSION_ID >= 80300 && extension_loaded("gd") ? 0 : 1);' || {
-  printf '%s\n' 'PHP 8.3+ and the GD extension are required.' >&2
+php -r 'exit(PHP_VERSION_ID >= 80400 && extension_loaded("gd") ? 0 : 1);' || {
+  printf '%s\n' 'PHP 8.4+ and the GD extension are required.' >&2
   exit 1
 }
 # Composer validates all locked platform requirements before installing packages.

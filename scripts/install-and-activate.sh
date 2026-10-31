@@ -64,7 +64,7 @@ if command -v apt-get >/dev/null 2>&1; then
     run bash -c "printf 'deb [signed-by=/etc/apt/keyrings/ondrej-php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu %s main\n' '${codename}' > /etc/apt/sources.list.d/ondrej-php.list"
     run env DEBIAN_FRONTEND=noninteractive apt-get update
   }
-  if [[ "$DRY_RUN" == 0 ]] && ! php -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' 2>/dev/null; then
+  if [[ "$DRY_RUN" == 0 ]] && ! php -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);' 2>/dev/null; then
     add_ondrej_ppa
   elif [[ "$DRY_RUN" == 1 ]]; then
     add_ondrej_ppa
@@ -83,8 +83,8 @@ if command -v apt-get >/dev/null 2>&1; then
   fi
 
   run env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    nginx php8.3-fpm php8.3-cli php8.3-gd php8.3-mbstring php8.3-xml \
-    php8.3-curl php8.3-zip php8.3-sqlite3 php8.3-bcmath php8.3-intl nodejs
+    nginx php8.4-fpm php8.4-cli php8.4-gd php8.4-mbstring php8.4-xml \
+    php8.4-curl php8.4-zip php8.4-sqlite3 php8.4-bcmath php8.4-intl nodejs
   # Composer installed via official installer to avoid distro version skew.
   if [[ "$DRY_RUN" == 0 ]] && ! command -v composer >/dev/null 2>&1; then
     run bash -c 'curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer'
@@ -150,7 +150,7 @@ After=network.target
 Type=simple
 WorkingDirectory=$RELEASE_DIR/backend
 EnvironmentFile=$ENV_FILE
-ExecStart=/usr/bin/php8.3 artisan serve --host=127.0.0.1 --port=$BACKEND_PORT
+ExecStart=/usr/bin/php8.4 artisan serve --host=127.0.0.1 --port=$BACKEND_PORT
 Restart=on-failure
 RestartSec=5
 User=www-data
