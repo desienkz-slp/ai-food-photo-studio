@@ -1,3 +1,26 @@
+# Walkthrough — Editor Foto Gaya ChatGPT (stateless)
+
+## Apa ini
+Panel baru **"Edit foto (AI)"** di halaman utama. Alurnya seperti ChatGPT: unggah foto → ketik instruksi → dapat gambar hasil. Hasil jadi dasar edit berikutnya (iteratif). **Tidak ada yang disimpan di server** — bukan sistem aset/versi/approval.
+
+## Cara kerja (mekanisme ChatGPT)
+Berbeda dari `/images/edits` gaya lama (yang provider ini tak punya → 404). Editor ini kirim **gambar input + instruksi teks** ke `POST /chat/completions` memakai model image-generation (`gemini-3.1-flash-image`), lalu membaca **gambar baru** dari respons (data URI). Satu input → satu output → iterasi.
+
+## Komponen
+- **Backend** `AiPhotoEditor`: kirim image+text ke `chat/completions`, parse gambar balik (markdown data URI / `images[]` / content array). Bounded timeout 90s, fail-closed.
+- **Controller** `PhotoEditController` (`POST /photo-edit`): terima upload + instruksi, balikan gambar inline sebagai data URI. Stateless, auth + throttle `10,1`.
+- **Frontend** `photo-editor.tsx`: unggah → instruksi → "Kirim edit"; hasil ditampilkan + tombol **Unduh**; "Mulai baru" reset. Hasil otomatis jadi input edit berikutnya.
+- **nginx**: path `/photo-edit` ditambahkan ke allowlist proxy ke backend.
+
+## Verifikasi nyata (server)
+- `POST /photo-edit` dengan `ayam bakar.jpg` → `200` dalam **11.5s**, hasil **JPEG 1024×1024** (768KB), latar kayu rustic + cahaya hangat sesuai instruksi.
+- Lokal: 16/16 vitest lulus, PHP lint bersih, `next build` sukses.
+
+## Model yang dipakai editor
+Editor memakai slot **"Model edit gambar"**. Set ke model yang bisa **menghasilkan gambar** dari chat, mis. `gemini-3.1-flash-image`. Model teks biasa (gpt/claude) tak akan mengembalikan gambar.
+
+---
+
 # Walkthrough — Setting Model Vision & Buat Gambar (commit `43b7481`)
 
 ## Di mana tempat setting-nya?
