@@ -11,6 +11,11 @@ internal/
 docs/internal/
 *.docx
 
+# Stray sample images at repo root (test uploads, not source assets)
+/*.jpg
+/*.jpeg
+/*.png
+
 # Dependencies and build output
 node_modules/
 .next/
@@ -27,3 +32,4 @@ build/
 .DS_Store
 .worktrees/
 *.log
+*.jpg
