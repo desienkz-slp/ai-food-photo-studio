@@ -11,7 +11,7 @@ function csrfToken() {
   try { return decodeURIComponent(value) || null } catch { return null }
 }
 
-export function AuthPanel({ onWorkspaces }: { onWorkspaces?: (items: WorkspaceItem[]) => void }) {
+export function AuthPanel({ onWorkspaces, children }: { onWorkspaces?: (items: WorkspaceItem[]) => void; children?: React.ReactNode }) {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('')
@@ -62,7 +62,29 @@ export function AuthPanel({ onWorkspaces }: { onWorkspaces?: (items: WorkspaceIt
     const token = csrfToken(); if (!token) { setError('Cookie CSRF tidak tersedia.'); return }
     setBusy(true); setError(''); try { const response = await fetch('/logout', { ...options, method: 'POST', headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token } }); if (!response.ok) throw new Error(); setActive(false); onWorkspaces?.([]) } catch { setError('Logout gagal.'); } finally { setBusy(false) }
   }
-  if (loading) return <section className="card" aria-label="Status sesi"><p>Memeriksa sesi…</p></section>
-  if (active) return <section className="card" aria-label="Status sesi"><p>Sesi aktif</p><button type="button" onClick={logout} disabled={busy}>Logout</button>{error && <p role="alert">{error}</p>}</section>
-  return <section className="card" aria-label="Status sesi"><h2>Sesi belum terhubung</h2><form onSubmit={submit} autoComplete="off"><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><button type="submit" disabled={busy || !email || !password}>Login</button></form>{error && <p role="alert">{error}</p>}</section>
+  if (loading) return <div className="login-screen"><section className="login-card" aria-label="Status sesi"><p className="login-checking">Memeriksa sesi…</p></section></div>
+
+  if (active) return <>
+    <div className="session-bar" aria-label="Status sesi">
+      <span className="session-dot"><span aria-hidden="true">● </span>Sesi aktif</span>
+      <button type="button" className="session-logout" onClick={logout} disabled={busy}>Logout</button>
+    </div>
+    {error && <p role="alert" className="session-error">{error}</p>}
+    {children}
+  </>
+
+  return <div className="login-screen">
+    <section className="login-card" aria-label="Masuk ke ruang kerja">
+      <p className="eyebrow">FOOD PHOTO STUDIO</p>
+      <h1 className="login-title">Selamat Datang</h1>
+      <p className="login-subtitle">Masuk untuk mengakses ruang kerja foto makanan Anda.</p>
+      <form onSubmit={submit} autoComplete="off">
+        <label>Email<input type="email" value={email} autoComplete="username" placeholder="nama@contoh.com" onChange={(event) => setEmail(event.target.value)} /></label>
+        <label>Password<input type="password" value={password} autoComplete="current-password" placeholder="••••••••" onChange={(event) => setPassword(event.target.value)} /></label>
+        <button type="submit" className="login-submit" disabled={busy || !email || !password}>{busy ? 'Memproses…' : 'Masuk'}</button>
+      </form>
+      {error && <p role="alert">{error}</p>}
+    </section>
+    <p className="login-footer">Ruang Kerja Foto Makanan · Edisi Klasik</p>
+  </div>
 }

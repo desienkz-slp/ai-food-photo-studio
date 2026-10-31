@@ -10,7 +10,7 @@ describe('status sesi dan login', () => {
   it('menampilkan sesi belum terhubung setelah bootstrap guest tanpa mengirim kredensial', async () => {
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 204 })).mockResolvedValueOnce(json({}, 401))
     render(<AuthPanel />)
-    expect(await screen.findByText('Sesi belum terhubung')).toBeInTheDocument()
+    expect(await screen.findByText('Selamat Datang')).toBeInTheDocument()
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual(['/csrf-cookie', '/session'])
   })
   it('login dan logout memakai CSRF tanpa menyimpan key', async () => {
@@ -19,11 +19,11 @@ describe('status sesi dan login', () => {
     const storage = vi.spyOn(Storage.prototype, 'setItem')
     render(<AuthPanel />)
     await user.type(await screen.findByLabelText('Email'), 'a@b.test'); await user.type(screen.getByLabelText('Password'), 'secret')
-    await user.click(screen.getByRole('button', { name: 'Login' }))
+    await user.click(screen.getByRole('button', { name: 'Masuk' }))
     await screen.findByText('Sesi aktif')
     expect(fetcher).toHaveBeenNthCalledWith(3, '/login', expect.objectContaining({ method: 'POST', credentials: 'include', headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'csrf+value' }), body: JSON.stringify({ email: 'a@b.test', password: 'secret' }) }))
     await user.click(screen.getByRole('button', { name: 'Logout' }))
-    await waitFor(() => expect(screen.getByText('Sesi belum terhubung')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Selamat Datang')).toBeInTheDocument())
     expect(fetcher).toHaveBeenNthCalledWith(4, '/logout', expect.objectContaining({ method: 'POST', credentials: 'include', headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'csrf+value' }) }))
     expect(storage).not.toHaveBeenCalled()
   })
