@@ -20,10 +20,9 @@ Route::middleware(['auth', 'throttle:10,1'])->get('/workspaces/{workspace}/updat
 Route::middleware('auth')->get('/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'index']);
 Route::middleware(['auth', 'throttle:10,1'])->get('/providers/{type}/models', [\App\Http\Controllers\ProviderConfigurationController::class, 'models'])->where('type', 'openai-compatible|other');
 Route::middleware('auth')->post('/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'store']);
-Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/assets', [\App\Http\Controllers\AssetController::class, 'store']);
-Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/created-images', [\App\Http\Controllers\ImageCreateController::class, 'store']);
-Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/assets/{asset}/vision', [\App\Http\Controllers\VisionController::class, 'analyze']);
 Route::middleware(['auth', 'throttle:10,1'])->post('/photo-edit', [\App\Http\Controllers\PhotoEditController::class, 'edit']);
+Route::middleware('auth')->get('/photo-edit/history', [\App\Http\Controllers\PhotoEditController::class, 'index']);
+Route::middleware('auth')->get('/photo-edit/history/{history}/download', [\App\Http\Controllers\PhotoEditController::class, 'download']);
 
 Route::get('/', function () {
     return response()->json([
