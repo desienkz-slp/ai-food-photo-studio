@@ -8,22 +8,21 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 afterEach(() => { vi.restoreAllMocks(); document.cookie = 'XSRF-TOKEN=; Max-Age=0' })
 
 describe('Pengaturan provider', () => {
-  it('gagal tertutup tanpa workspace dan sesi', async () => {
+  it('gagal tertutup sebelum pengaturan dimuat', async () => {
     const fetcher = vi.spyOn(globalThis, 'fetch')
     render(<ProviderSettings />)
     expect(screen.getByRole('button', { name: 'Simpan pengaturan' })).toBeDisabled()
     expect(fetcher).not.toHaveBeenCalled()
-    expect(screen.getByText(/sesi.*workspace/i)).toBeInTheDocument()
+    expect(screen.getByText(/global/i)).toBeInTheDocument()
   })
 
-  it('mengirim hanya kontrak backend dengan cookie CSRF dan kredensial', async () => {
+  it('mengirim hanya kontrak backend global dengan cookie CSRF dan kredensial', async () => {
     const user = userEvent.setup()
     document.cookie = 'XSRF-TOKEN=token%2Bvalue'
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(json({data: []})).mockResolvedValueOnce(json({data: {type: 'other', model: 'm1'}}, 201))
     const storage = vi.spyOn(Storage.prototype, 'setItem')
     const log = vi.spyOn(console, 'log')
-    render(<ProviderSettings workspaces={[{ id: 42, name: 'Dapur' }]} />)
-    await user.selectOptions(screen.getByLabelText('Workspace'), '42')
+    render(<ProviderSettings />)
     await user.click(screen.getByRole('button', {name: 'Muat pengaturan'}))
     await screen.findByText(/pengaturan provider dimuat/i)
     await user.selectOptions(screen.getByLabelText('Tipe provider'), 'other')
@@ -31,7 +30,7 @@ describe('Pengaturan provider', () => {
     await user.type(screen.getByLabelText('API key'), 'secret-test-key')
     await user.click(screen.getByRole('button', {name: 'Simpan pengaturan'}))
     await screen.findByText(/pengaturan provider tersimpan/i)
-    expect(fetcher).toHaveBeenLastCalledWith('/workspaces/42/providers', expect.objectContaining({method: 'POST', credentials: 'include', headers: expect.objectContaining({'X-XSRF-TOKEN': 'token+value'}), body: JSON.stringify({type: 'other', communication_mode: 'chat', model: 'm1', api_key: 'secret-test-key'})}))
+    expect(fetcher).toHaveBeenLastCalledWith('/providers', expect.objectContaining({method: 'POST', credentials: 'include', headers: expect.objectContaining({'X-XSRF-TOKEN': 'token+value'}), body: JSON.stringify({type: 'other', communication_mode: 'chat', model: 'm1', api_key: 'secret-test-key'})}))
     expect(screen.getByLabelText('API key')).toHaveValue('')
     expect(storage).not.toHaveBeenCalled()
     expect(log).not.toHaveBeenCalled()
@@ -40,8 +39,7 @@ describe('Pengaturan provider', () => {
   it('tidak mengirim key jika cookie CSRF tidak tersedia', async () => {
     const user = userEvent.setup()
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({data: []}))
-    render(<ProviderSettings workspaces={[{ id: 42, name: 'Dapur' }]} />)
-    await user.selectOptions(screen.getByLabelText('Workspace'), '42')
+    render(<ProviderSettings />)
     await user.click(screen.getByRole('button', {name: 'Muat pengaturan'}))
     await screen.findByText(/pengaturan provider dimuat/i)
     await user.selectOptions(screen.getByLabelText('Tipe provider'), 'other')
@@ -55,8 +53,7 @@ describe('Pengaturan provider', () => {
   it('menolak menyimpan saat sesi tidak sah', async () => {
     const user = userEvent.setup()
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({}, 401))
-    render(<ProviderSettings workspaces={[{ id: 42, name: 'Dapur' }]} />)
-    await user.selectOptions(screen.getByLabelText('Workspace'), '42')
+    render(<ProviderSettings />)
     await user.click(screen.getByRole('button', {name: 'Muat pengaturan'}))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/sesi/i))
     expect(screen.getByRole('button', {name: 'Simpan pengaturan'})).toBeDisabled()

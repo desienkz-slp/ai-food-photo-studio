@@ -11,7 +11,7 @@ class SessionController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        return response()->json(['user' => $request->user()->only(['id', 'name', 'email'])]);
+        return response()->json(['user' => $request->user()->only(['id', 'name', 'email', 'is_super_admin'])]);
     }
 
     public function destroy(Request $request): \Illuminate\Http\Response

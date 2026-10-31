@@ -11,7 +11,7 @@ function csrfToken() {
   try { return decodeURIComponent(value) || null } catch { return null }
 }
 
-export function AuthPanel({ onWorkspaces, children }: { onWorkspaces?: (items: WorkspaceItem[]) => void; children?: React.ReactNode }) {
+export function AuthPanel({ onWorkspaces, onSuperAdmin, children }: { onWorkspaces?: (items: WorkspaceItem[]) => void; onSuperAdmin?: (value: boolean) => void; children?: React.ReactNode }) {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('')
@@ -28,7 +28,7 @@ export function AuthPanel({ onWorkspaces, children }: { onWorkspaces?: (items: W
         if (!session.ok) throw new Error()
         const result = await session.json()
         if (!result.user || typeof result.user.id !== 'number') throw new Error()
-        if (!controller.signal.aborted) setActive(true)
+        if (!controller.signal.aborted) { onSuperAdmin?.(result.user.is_super_admin === true); setActive(true) }
       } catch { if (!controller.signal.aborted) setError('Sesi atau koneksi tidak tersedia. Muat ulang halaman.') }
       finally { if (!controller.signal.aborted) setLoading(false) }
     }
@@ -56,11 +56,11 @@ export function AuthPanel({ onWorkspaces, children }: { onWorkspaces?: (items: W
     event.preventDefault(); const token = csrfToken()
     if (!token) { setError('Cookie CSRF tidak tersedia.'); return }
     setBusy(true); setError('')
-    try { const response = await fetch('/login', { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token }, body: JSON.stringify({ email, password }) }); if (!response.ok) throw new Error(); setActive(true); setPassword('') } catch { setError('Login gagal. Periksa kredensial dan sesi.') } finally { setBusy(false) }
+    try { const response = await fetch('/login', { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token }, body: JSON.stringify({ email, password }) }); if (!response.ok) throw new Error(); const result = await response.json().catch(() => null); onSuperAdmin?.(result?.user?.is_super_admin === true); setActive(true); setPassword('') } catch { setError('Login gagal. Periksa kredensial dan sesi.') } finally { setBusy(false) }
   }
   async function logout() {
     const token = csrfToken(); if (!token) { setError('Cookie CSRF tidak tersedia.'); return }
-    setBusy(true); setError(''); try { const response = await fetch('/logout', { ...options, method: 'POST', headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token } }); if (!response.ok) throw new Error(); setActive(false); onWorkspaces?.([]) } catch { setError('Logout gagal.'); } finally { setBusy(false) }
+    setBusy(true); setError(''); try { const response = await fetch('/logout', { ...options, method: 'POST', headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token } }); if (!response.ok) throw new Error(); setActive(false); onWorkspaces?.([]); onSuperAdmin?.(false) } catch { setError('Logout gagal.'); } finally { setBusy(false) }
   }
   if (loading) return <div className="login-screen"><section className="login-card" aria-label="Status sesi"><p className="login-checking">Memeriksa sesi…</p></section></div>
 

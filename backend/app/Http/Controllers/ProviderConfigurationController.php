@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProviderConfiguration;
-use App\Models\Workspace;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -11,16 +10,18 @@ use Illuminate\Database\QueryException;
 
 class ProviderConfigurationController extends Controller
 {
-    public function index(Request $request, Workspace $workspace): JsonResponse
+    /**
+     * Global provider list. Any authenticated tenant may read it (secrets are
+     * never exposed); only the super admin may write it.
+     */
+    public function index(Request $request): JsonResponse
     {
-        $this->authorizeManagement($request, $workspace);
-
-        return response()->json(['data' => ProviderConfiguration::where('workspace_id', $workspace->id)->get()]);
+        return response()->json(['data' => ProviderConfiguration::all()]);
     }
 
-    public function store(Request $request, Workspace $workspace): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $this->authorizeManagement($request, $workspace);
+        abort_unless($request->user()->is_super_admin, 403);
         $data = $request->validate([
             'type' => ['required', 'string', Rule::in(['openai-compatible', 'other']), 'max:100'],
             'communication_mode' => ['sometimes', 'string', Rule::in(['chat', 'message', 'response'])],
@@ -35,12 +36,11 @@ class ProviderConfigurationController extends Controller
             'model' => ['required', 'string', 'max:255'],
             'api_key' => ['nullable', 'string', 'max:4096'],
         ]);
-        $provider = ProviderConfiguration::firstOrNew(['workspace_id' => $workspace->id, 'type' => $data['type']]);
+        $provider = ProviderConfiguration::firstOrNew(['type' => $data['type']]);
         if (! $provider->exists && empty($data['api_key'])) {
             throw \Illuminate\Validation\ValidationException::withMessages(['api_key' => 'The api key field is required.']);
         }
         $created = ! $provider->exists;
-        $provider->workspace_id = $workspace->id;
         $provider->type = $data['type'];
         $provider->communication_mode = $data['communication_mode'] ?? $provider->communication_mode ?? 'chat';
         $provider->model = $data['model'];
@@ -60,11 +60,5 @@ class ProviderConfigurationController extends Controller
         }
 
         return response()->json(['data' => $provider], $created ? 201 : 200);
-    }
-
-    private function authorizeManagement(Request $request, Workspace $workspace): void
-    {
-        $membership = $workspace->users()->whereKey($request->user()->getKey())->first();
-        abort_unless($membership && in_array($membership->pivot->role, ['owner', 'admin'], true), 403);
     }
 }

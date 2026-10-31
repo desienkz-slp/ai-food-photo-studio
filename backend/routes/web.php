@@ -14,8 +14,11 @@ Route::middleware('auth')->get('/session', [SessionController::class, 'show']);
 Route::middleware('auth')->get('/workspaces', [WorkspaceController::class, 'index']);
 Route::middleware('auth')->get('/workspaces/{workspace}', [WorkspaceController::class, 'show']);
 Route::middleware(['auth', 'throttle:10,1'])->get('/workspaces/{workspace}/updates', UpdateCheckController::class);
-Route::middleware('auth')->get('/workspaces/{workspace}/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'index']);
-Route::middleware('auth')->post('/workspaces/{workspace}/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'store']);
+// Provider configuration is global (managed by the super admin, shared by all
+// tenants). Reading is allowed for any authenticated user; writing is gated to
+// the super admin inside the controller.
+Route::middleware('auth')->get('/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'index']);
+Route::middleware('auth')->post('/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'store']);
 Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/assets', [\App\Http\Controllers\AssetController::class, 'store']);
 
 Route::get('/', function () {

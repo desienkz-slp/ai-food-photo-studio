@@ -24,8 +24,12 @@ class DatabaseSeeder extends Seeder
         // the display name and "photosuper" the initial password.
         $admin = User::firstOrCreate(
             ['email' => 'superadmin@photo.netora.id'],
-            ['name' => 'superadmin', 'password' => Hash::make('photosuper')],
+            ['name' => 'superadmin', 'password' => Hash::make('photosuper'), 'is_super_admin' => true],
         );
+        // Ensure the flag is set even if the row already existed before this column.
+        if (! $admin->is_super_admin) {
+            $admin->forceFill(['is_super_admin' => true])->save();
+        }
 
         // Default workspace, linked to the admin as owner (idempotent).
         $workspace = Workspace::firstOrCreate(['name' => 'Dapur Utama']);
