@@ -18,6 +18,8 @@ final class AiPhotoEditor
 {
     private const CONNECT_TIMEOUT_SEC = 5;
     private const TOTAL_TIMEOUT_SEC = 90;
+    private const MAX_ATTEMPTS = 3;
+    private const RETRY_BACKOFF_MS = 800;
     private const ALLOWED_MIME = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
 
     public function __construct(private readonly HttpFactory $http) {}
@@ -43,23 +45,40 @@ final class AiPhotoEditor
         }
 
         $dataUri = 'data:'.$mime.';base64,'.base64_encode($image);
-        $response = $this->http
-            ->withToken((string) ($provider->api_key ?? ''))
-            ->acceptJson()
-            ->connectTimeout(self::CONNECT_TIMEOUT_SEC)
-            ->timeout(self::TOTAL_TIMEOUT_SEC)
-            ->post(rtrim($provider->endpoint, '/').'/chat/completions', [
-                'model' => $model,
-                'messages' => [[
-                    'role' => 'user',
-                    'content' => [
-                        ['type' => 'text', 'text' => $instruction],
-                        ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
-                    ],
-                ]],
-            ]);
+        $payload = [
+            'model' => $model,
+            'messages' => [[
+                'role' => 'user',
+                'content' => [
+                    ['type' => 'text', 'text' => $instruction],
+                    ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
+                ],
+            ]],
+        ];
 
-        if (! $response->successful()) {
+        // The router occasionally returns transient 5xx ("reset after Ns").
+        // Retry a bounded number of times with linear backoff before failing.
+        $response = null;
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            try {
+                $response = $this->http
+                    ->withToken((string) ($provider->api_key ?? ''))
+                    ->acceptJson()
+                    ->connectTimeout(self::CONNECT_TIMEOUT_SEC)
+                    ->timeout(self::TOTAL_TIMEOUT_SEC)
+                    ->post(rtrim($provider->endpoint, '/').'/chat/completions', $payload);
+            } catch (\Illuminate\Http\Client\ConnectionException $exception) {
+                $response = null;
+            }
+            if ($response !== null && $response->successful()) {
+                break;
+            }
+            if ($attempt < self::MAX_ATTEMPTS) {
+                usleep(self::RETRY_BACKOFF_MS * 1000 * $attempt);
+            }
+        }
+
+        if ($response === null || ! $response->successful()) {
             throw new RuntimeException('AI provider request failed.');
         }
 
