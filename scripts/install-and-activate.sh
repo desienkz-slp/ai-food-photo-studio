@@ -95,7 +95,10 @@ else
   log 'apt-get not found locally; dry-run only'
 fi
 
-run install -d -m 0755 "$APP_ROOT/releases" "$APP_ROOT/shared" "$APP_ROOT/shared/database" /etc/food-photo-studio
+run install -d -m 0755 "$APP_ROOT" "$APP_ROOT/releases" "$APP_ROOT/shared" "$APP_ROOT/shared/database" /etc/food-photo-studio
+# A pre-existing APP_ROOT may be mode 700 owned by another user, which blocks
+# www-data from traversing into the release. Force traversable perms.
+[[ "$DRY_RUN" == 1 ]] || run chmod 0755 "$APP_ROOT"
 
 # Disable the legacy Python/uvicorn prototype if present so it cannot bind ports.
 if [[ "$DRY_RUN" == 0 ]] && systemctl list-unit-files 2>/dev/null | grep -q '^food-photo-studio\.service'; then
@@ -199,12 +202,16 @@ run rm -f /etc/nginx/sites-enabled/default
 run nginx -t
 run ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 run systemctl daemon-reload
-run systemctl enable --now food-photo-backend food-photo-frontend nginx
+run systemctl enable food-photo-backend food-photo-frontend nginx
+# enable --now will not reload an already-running nginx, and on redeploy the app
+# services must be restarted to pick up the new release path. Be explicit.
+run systemctl restart food-photo-backend food-photo-frontend
+run systemctl reload-or-restart nginx
 
 if [[ "$DRY_RUN" == 1 ]]; then
   log 'dry-run complete; no host changes made'
 else
   log "release active at $CURRENT_LINK"
-  log 'health checks: curl -fsS http://127.0.0.1/ and curl -fsS http://127.0.0.1:8000/up'
-  log 'migrations were not run unless RUN_MIGRATIONS=1 was supplied'
+  log "health checks: curl -fsS http://127.0.0.1:$PUBLIC_PORT/ and curl -fsS http://127.0.0.1:$BACKEND_PORT/up"
+  log 'migrations ran by default; set RUN_MIGRATIONS=0 to skip them'
 fi
