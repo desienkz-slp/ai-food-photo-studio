@@ -1,0 +1,40 @@
+<?php
+
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\WorkspaceController;
+use App\Http\Controllers\SessionController;
+use App\Http\Controllers\UpdateCheckController;
+
+Route::get('/csrf-cookie', fn () => response()->noContent());
+Route::middleware('throttle:5,1')->post('/login', [SessionController::class, 'store']);
+Route::middleware('auth')->post('/logout', [SessionController::class, 'destroy']);
+Route::middleware('auth')->get('/session', [SessionController::class, 'show']);
+
+Route::middleware('auth')->get('/workspaces', [WorkspaceController::class, 'index']);
+Route::middleware('auth')->get('/workspaces/{workspace}', [WorkspaceController::class, 'show']);
+Route::middleware(['auth', 'throttle:10,1'])->get('/workspaces/{workspace}/updates', UpdateCheckController::class);
+Route::middleware('auth')->get('/workspaces/{workspace}/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'index']);
+Route::middleware('auth')->post('/workspaces/{workspace}/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'store']);
+Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/assets', [\App\Http\Controllers\AssetController::class, 'store']);
+
+Route::get('/', function () {
+    return response()->json([
+        'service' => 'ai-food-photo-studio-backend',
+        'status' => 'ok',
+    ]);
+});
+
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'service' => 'ai-food-photo-studio-backend',
+        'timestamp' => Carbon::now()->toISOString(),
+    ]);
+});
+Route::middleware('auth')->get('/workspaces/{workspace}/assets', [\App\Http\Controllers\AssetVersionController::class, 'index']);
+Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions', [\App\Http\Controllers\AssetVersionController::class, 'store']);
+Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/approval', [\App\Http\Controllers\ApprovalExportController::class, 'approve']);
+Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/export', [\App\Http\Controllers\ApprovalExportController::class, 'export']);
+Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/processing-jobs', [\App\Http\Controllers\ProcessingJobController::class, 'store']);
+Route::middleware('auth')->get('/workspaces/{workspace}/exports/{export}', [\App\Http\Controllers\ApprovalExportController::class, 'download']);

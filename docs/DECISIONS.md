@@ -14,3 +14,7 @@
 3. **Full-image AI edit vs balanced:** eksperimen full-image hanya boleh dipertimbangkan sebagai benchmark terkontrol setelah persetujuan, bukan pengecualian aturan perlindungan produk di workflow balanced.
 4. **Target dan kapasitas:** deployment native pada server yang ditentukan pemilik; pembagian layanan, storage/backup dan batas resource belum disetujui. Tidak mengasumsikan seluruh stack memadai pada satu host.
 5. **Lisensi:** MIT, Copyright (c) 2026 Netora; lihat `LICENSE`.
+
+## Provider endpoint security and migration
+
+Provider configuration stores a display name and endpoint alongside provider type/model. API keys use Laravel encryption and are hidden from JSON responses. Endpoint validation requires HTTPS and rejects credentials, IP literals, localhost, cloud metadata, and `.internal` hosts. This makes no HTTP connection. SSRF gap: future clients need egress controls, DNS/rebinding defenses, private/link-local/loopback/IPv6 blocking, redirect blocking, and an explicit allowlist. Migration 2026_10_31_000007 adds nullable name and endpoint fields for compatibility.
