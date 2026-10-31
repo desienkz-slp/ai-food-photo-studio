@@ -43,17 +43,31 @@ EOF
 if [[ "$DRY_RUN" == 0 && "$(id -u)" != 0 ]]; then fail 'run as root or use DRY_RUN=1'; fi
 
 if command -v apt-get >/dev/null 2>&1; then
+  # Some hosts advertise IPv6 but have no working route, which hangs apt and
+  # add-apt-repository against ppa.launchpadcontent.net. Force IPv4 for apt.
+  if [[ "$DRY_RUN" == 0 ]]; then
+    printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
+  fi
   run env DEBIAN_FRONTEND=noninteractive apt-get update
   # Base tooling needed to add third-party repositories reliably.
   run env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     git curl ca-certificates unzip gnupg lsb-release software-properties-common
 
   # PHP 8.3 is not in Ubuntu 22.04 base repos; add Ondrej PPA when absent.
-  if [[ "$DRY_RUN" == 0 ]] && ! php -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' 2>/dev/null; then
-    run add-apt-repository -y ppa:ondrej/php
+  # add-apt-repository uses launchpadlib (Python API) which ignores apt's IPv4
+  # setting and hangs on broken-IPv6 hosts; add the PPA manually instead.
+  ONDREJ_KEY='14AA40EC0831756756D7F66C4F4EA0AAE5267A6C'
+  add_ondrej_ppa() {
+    local codename; codename="$(lsb_release -cs)"
+    run install -d -m 0755 /etc/apt/keyrings
+    run bash -c "curl -4 -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${ONDREJ_KEY}' | gpg --dearmor -o /etc/apt/keyrings/ondrej-php.gpg"
+    run bash -c "printf 'deb [signed-by=/etc/apt/keyrings/ondrej-php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu %s main\n' '${codename}' > /etc/apt/sources.list.d/ondrej-php.list"
     run env DEBIAN_FRONTEND=noninteractive apt-get update
+  }
+  if [[ "$DRY_RUN" == 0 ]] && ! php -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' 2>/dev/null; then
+    add_ondrej_ppa
   elif [[ "$DRY_RUN" == 1 ]]; then
-    run add-apt-repository -y ppa:ondrej/php
+    add_ondrej_ppa
   fi
 
   # Node.js 18+ is required by Next.js; Ubuntu 22.04 ships Node 12. Add NodeSource 20 when too old.
