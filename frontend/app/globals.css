@@ -1,1 +1,260 @@
-*{box-sizing:border-box}body{margin:0;background:#f7f5f0;color:#24231f;font-family:Arial,sans-serif}.workspace{max-width:920px;margin:0 auto;padding:56px 24px}.eyebrow{font-size:12px;letter-spacing:.16em;color:#756d5e}h1{font-size:42px;margin:8px 0 16px}.status{display:inline-block;padding:8px 12px;border-radius:999px;background:#eee9dd;color:#695f4f;font-weight:700}header>p:last-child{color:#706b61}.card{background:#fff;border:1px solid #e4dfd5;border-radius:16px;padding:28px;margin-top:24px;box-shadow:0 5px 20px #2920160b}h2{margin-top:0}button{padding:11px 18px;border:0;border-radius:9px;background:#c9c3b7;color:#726b60;font-weight:700;cursor:not-allowed}button:disabled{opacity:.7}.card p{line-height:1.6;color:#6d685f}
+/* ============================================================
+   AI Food Photo Studio — Tema "Classic"
+   Tipografi serif, palet parchment + burgundy + emas,
+   kartu berbingkai elegan. Semua gaya digerakkan dari sini
+   agar markup komponen tidak perlu diubah.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+:root {
+  --parchment: #f4ecdd;
+  --parchment-deep: #ece0c9;
+  --ink: #2b2118;
+  --ink-soft: #5c4f3d;
+  --muted: #8a7a61;
+  --burgundy: #6d1f2b;
+  --burgundy-deep: #531019;
+  --gold: #b08d3f;
+  --gold-soft: #cdb06a;
+  --card: #fffdf7;
+  --line: #d8c7a6;
+  --shadow: 0 18px 44px rgba(43, 33, 24, 0.14);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: 'Lora', Georgia, 'Times New Roman', serif;
+  line-height: 1.65;
+  background-color: var(--parchment);
+  background-image:
+    radial-gradient(circle at 12% -10%, rgba(176, 141, 63, 0.14), transparent 42%),
+    radial-gradient(circle at 92% 0%, rgba(109, 31, 43, 0.10), transparent 45%),
+    linear-gradient(180deg, #f6eede 0%, #efe3cd 100%);
+  background-attachment: fixed;
+}
+
+/* ---------- Layout ---------- */
+.workspace {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 72px 28px 96px;
+}
+
+/* ---------- Header ---------- */
+header {
+  text-align: center;
+  padding: 40px 0 8px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  margin-bottom: 8px;
+}
+header::after {
+  content: "\275C \2766 \275B";
+  position: absolute;
+  left: 50%;
+  bottom: -15px;
+  transform: translateX(-50%);
+  background: var(--parchment);
+  padding: 0 16px;
+  color: var(--gold);
+  font-size: 16px;
+  letter-spacing: 0.3em;
+}
+
+.eyebrow {
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 10px;
+}
+
+h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  margin: 0 0 18px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border: 1px solid var(--gold-soft);
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fbf4e3, #f1e4c8);
+  color: var(--burgundy);
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+header > p:last-child {
+  color: var(--ink-soft);
+  font-style: italic;
+  font-size: 16px;
+  margin: 18px 0 0;
+}
+
+/* ---------- Cards ---------- */
+.card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 34px 36px;
+  margin-top: 30px;
+  box-shadow: var(--shadow);
+}
+/* Bingkai ganda ala ornamen klasik */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(176, 141, 63, 0.38);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.card > * { position: relative; }
+
+h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 600;
+  font-size: 25px;
+  color: var(--burgundy);
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card p { color: var(--ink-soft); margin: 10px 0; }
+.card p[role="status"] { color: var(--burgundy); font-style: italic; }
+.card p[role="alert"] {
+  color: var(--burgundy-deep);
+  background: #f7e7df;
+  border-left: 3px solid var(--burgundy);
+  padding: 10px 14px;
+  border-radius: 2px;
+  font-style: italic;
+}
+
+/* ---------- Forms ---------- */
+form { margin-top: 8px; }
+
+label {
+  display: block;
+  margin: 16px 0 6px;
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+input, select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 13px;
+  font-family: 'Lora', serif;
+  font-size: 15px;
+  color: var(--ink);
+  background: #fffef9;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(176, 141, 63, 0.18);
+}
+input[type="file"] {
+  padding: 9px;
+  background: #faf4e6;
+  cursor: pointer;
+}
+
+/* ---------- Buttons ---------- */
+button, a[href] {
+  font-family: 'Lora', serif;
+}
+button {
+  margin-top: 18px;
+  margin-right: 10px;
+  padding: 11px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fdf7e9;
+  background: linear-gradient(180deg, var(--burgundy), var(--burgundy-deep));
+  border: 1px solid var(--burgundy-deep);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  box-shadow: 0 4px 12px rgba(83, 16, 25, 0.22);
+}
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px rgba(83, 16, 25, 0.28);
+}
+button:active:not(:disabled) { transform: translateY(0); }
+button[type="submit"] {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  border-color: var(--gold);
+  box-shadow: 0 4px 12px rgba(176, 141, 63, 0.3);
+}
+button:disabled {
+  background: #e7ddc8;
+  color: var(--muted);
+  border-color: var(--line);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.provider-actions { margin-top: 20px; }
+.provider-actions button { margin-top: 0; }
+
+/* ---------- Lists & links ---------- */
+.card ul { list-style: none; padding: 0; margin: 16px 0 0; }
+.card > ul > li {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  background: #fbf5e8;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+  border-radius: 2px;
+}
+.card ul ul { margin-top: 10px; }
+.card ul ul li { padding: 8px 0; border-bottom: 1px dotted var(--line); }
+.card ul ul li:last-child { border-bottom: 0; }
+
+a[href] {
+  color: var(--burgundy);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid var(--gold-soft);
+}
+a[href]:hover { color: var(--burgundy-deep); border-bottom-color: var(--burgundy); }
+
+@media (max-width: 560px) {
+  .workspace { padding: 48px 18px 72px; }
+  .card { padding: 26px 20px; }
+  .card::before { inset: 6px; }
+}
