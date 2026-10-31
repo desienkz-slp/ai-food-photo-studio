@@ -23,6 +23,7 @@ Route::middleware('auth')->post('/providers', [\App\Http\Controllers\ProviderCon
 Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/assets', [\App\Http\Controllers\AssetController::class, 'store']);
 Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/created-images', [\App\Http\Controllers\ImageCreateController::class, 'store']);
 Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/assets/{asset}/vision', [\App\Http\Controllers\VisionController::class, 'analyze']);
+Route::middleware(['auth', 'throttle:10,1'])->post('/photo-edit', [\App\Http\Controllers\PhotoEditController::class, 'edit']);
 
 Route::get('/', function () {
     return response()->json([

@@ -418,6 +418,10 @@ a[href]:hover { color: var(--burgundy-deep); border-bottom-color: var(--burgundy
   word-break: break-word;
 }
 
+.edit-turns { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+.edit-turns > li { padding-top: 14px; border-top: 1px dashed var(--line); }
+.edit-instruction { font-weight: 600; margin: 0 0 8px; }
+
 .create-panel {
   margin: 16px 0;
   padding: 14px 16px;
