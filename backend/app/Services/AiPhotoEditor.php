@@ -45,12 +45,21 @@ final class AiPhotoEditor
         }
 
         $dataUri = 'data:'.$mime.';base64,'.base64_encode($image);
+        // Force an EDIT of the provided photo rather than a fresh generation.
+        // Without this, image models tend to treat the input as a loose
+        // reference and redraw the whole scene. We instruct the model to keep
+        // the original subject, composition and framing, and apply only the
+        // requested change.
+        $editPrompt = 'Edit the provided photo. Keep the exact same subject, food, plating, '
+            .'composition, camera angle and framing as the input image. Do NOT redraw, '
+            .'replace or regenerate the dish. Apply ONLY this change: '.trim($instruction)
+            .'. Return the edited image.';
         $payload = [
             'model' => $model,
             'messages' => [[
                 'role' => 'user',
                 'content' => [
-                    ['type' => 'text', 'text' => $instruction],
+                    ['type' => 'text', 'text' => $editPrompt],
                     ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
                 ],
             ]],
