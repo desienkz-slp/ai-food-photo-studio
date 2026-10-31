@@ -73,6 +73,12 @@ if command -v apt-get >/dev/null 2>&1; then
   # Node.js 18+ is required by Next.js; Ubuntu 22.04 ships Node 12. Add NodeSource 20 when too old.
   node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
   if [[ "$DRY_RUN" == 1 || "${node_major:-0}" -lt 18 ]]; then
+    # Distro node 12 (libnode-dev/nodejs-doc) owns files that collide with the
+    # NodeSource package; purge them first to avoid dpkg overwrite errors.
+    if [[ "$DRY_RUN" == 0 ]]; then
+      run env DEBIAN_FRONTEND=noninteractive apt-get purge -y libnode-dev nodejs-doc nodejs npm || true
+      run env DEBIAN_FRONTEND=noninteractive apt-get autoremove -y || true
+    fi
     run bash -c 'curl -fsSL https://deb.nodesource.com/setup_20.x | env DEBIAN_FRONTEND=noninteractive bash -'
   fi
 
