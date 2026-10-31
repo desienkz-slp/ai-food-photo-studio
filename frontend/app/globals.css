@@ -395,6 +395,29 @@ a[href]:hover { color: var(--burgundy-deep); border-bottom-color: var(--burgundy
   box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.2);
 }
 
+.size-field {
+  display: inline-block;
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.size-field select { margin-left: 8px; }
+.variation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.variation-grid figure { margin: 0; }
+.variation-grid figcaption {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  word-break: break-word;
+}
+
 @media (max-width: 560px) {
   .workspace { padding: 48px 18px 72px; }
   .card { padding: 26px 20px; }

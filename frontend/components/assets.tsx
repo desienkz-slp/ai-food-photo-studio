@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import type { WorkspaceItem } from './auth-panel'
 
 type Version = { id: number; status: string; original_sha256: string; output_sha256?: string; job_id?: string; label: string | null }
-type Candidate = { id: number; output_sha256: string }
+type Candidate = { id: number; output_sha256: string; prompt?: string | null; size?: string | null }
 type Asset = { id: number; status?: string; versions: Version[] }
 const options: RequestInit = { credentials: 'include', redirect: 'error', cache: 'no-store', headers: { Accept: 'application/json' } }
 
@@ -15,6 +15,8 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
   const [exports, setExports] = useState<Record<number, string>>({})
   const [candidates, setCandidates] = useState<Record<number, Candidate>>({})
   const [prompts, setPrompts] = useState<Record<number, string>>({})
+  const [sizes, setSizes] = useState<Record<number, string>>({})
+  const [history, setHistory] = useState<Record<number, Candidate[]>>({})
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadKey, setUploadKey] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -38,10 +40,23 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
   }
   async function processCandidate(asset: Asset, version: Version): Promise<Candidate | null> {
     const prompt = (prompts[version.id] || '').trim()
-    const response = await fetch(`/workspaces/${workspace}/assets/${asset.id}/versions/${version.id}/processing-jobs`, { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': tokenFromCookie() }, body: JSON.stringify(prompt ? { prompt } : {}) })
+    const size = sizes[version.id]
+    const payload: Record<string, string> = {}
+    if (prompt) payload.prompt = prompt
+    if (size) payload.size = size
+    const response = await fetch(`/workspaces/${workspace}/assets/${asset.id}/versions/${version.id}/processing-jobs`, { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': tokenFromCookie() }, body: JSON.stringify(payload) })
     if (!response.ok) return null
     const { data } = await response.json()
-    return data && Number.isSafeInteger(data.id) && typeof data.output_sha256 === 'string' ? data : null
+    if (!data || !Number.isSafeInteger(data.id) || typeof data.output_sha256 !== 'string') return null
+    // Keep every generated candidate so the user can compare variations.
+    setHistory(previous => ({ ...previous, [version.id]: [{ id: data.id, output_sha256: data.output_sha256, prompt: data.prompt, size: data.size }, ...(previous[version.id] || [])] }))
+    return data
+  }
+  async function loadHistory(asset: Asset, version: Version) {
+    const response = await fetch(`/workspaces/${workspace}/assets/${asset.id}/versions/${version.id}/processing-jobs`, options)
+    if (!response.ok) return
+    const { data } = await response.json()
+    if (Array.isArray(data)) setHistory(previous => ({ ...previous, [version.id]: data }))
   }
   function tokenFromCookie() {
     const raw = document.cookie.split('; ').find(item => item.startsWith('XSRF-TOKEN='))?.slice(11)
@@ -104,7 +119,8 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
     {assets && (assets.length ? <ul>{assets.map(a => <li key={a.id}><span>Aset #{a.id} — {a.status || 'committed'}</span>
       <div className="image-preview"><img src={`/workspaces/${workspace}/assets/${a.id}/image`} alt={`Foto asli Aset #${a.id}`} loading="lazy" /></div>
       {a.versions.length === 0 && <button type="button" disabled={busy} onClick={() => createVersion(a)}>Buat versi Aset #{a.id}</button>}<ul>{a.versions.map(v => <li key={v.id}>{v.label || `Versi #${v.id}`} — {v.status}
-        {v.status === 'draft' && <><label className="prompt-field">Instruksi edit AI (opsional)<textarea value={prompts[v.id] || ''} maxLength={2000} disabled={busy} placeholder="mis. latar kayu rustic, cahaya hangat, uap mengepul" onChange={e => setPrompts(previous => ({ ...previous, [v.id]: e.target.value }))} /></label> <button type="button" disabled={busy} onClick={() => action(a, v, 'approval')}>Proses & setujui {v.label || `Versi #${v.id}`}</button></>}
+        {v.status === 'draft' && <><label className="prompt-field">Instruksi edit AI (opsional)<textarea value={prompts[v.id] || ''} maxLength={2000} disabled={busy} placeholder="mis. latar kayu rustic, cahaya hangat, uap mengepul" onChange={e => setPrompts(previous => ({ ...previous, [v.id]: e.target.value }))} /></label> <label className="size-field">Ukuran<select value={sizes[v.id] || ''} disabled={busy} onChange={e => setSizes(previous => ({ ...previous, [v.id]: e.target.value }))}><option value="">Default</option><option value="512x512">512×512</option><option value="1024x1024">1024×1024</option></select></label> <button type="button" disabled={busy} onClick={() => action(a, v, 'approval')}>Proses & setujui {v.label || `Versi #${v.id}`}</button> <button type="button" disabled={busy} onClick={() => loadHistory(a, v)}>Muat variasi</button></>}
+        {history[v.id] && history[v.id].length > 0 && <div className="variation-grid">{history[v.id].map(c => <figure key={c.id} className="image-preview"><img src={`/workspaces/${workspace}/assets/${a.id}/processing-jobs/${c.id}/output`} alt={`Variasi #${c.id}`} loading="lazy" /><figcaption>{c.size || 'default'}{c.prompt ? ` — ${c.prompt}` : ''}</figcaption></figure>)}</div>}
         {candidates[v.id] && <div className="image-preview"><img src={`/workspaces/${workspace}/assets/${a.id}/processing-jobs/${candidates[v.id].id}/output`} alt={`Hasil AI ${v.label || `Versi #${v.id}`}`} loading="lazy" /></div>}
         {v.status === 'approved' && <button type="button" disabled={busy} onClick={() => action(a, v, 'export')}>Ekspor {v.label || `Versi #${v.id}`}</button>} {exports[v.id] && <a href={`/workspaces/${workspace}/exports/${exports[v.id]}`}>Unduh {v.label || `Versi #${v.id}`}</a>}</li>)}</ul></li>)}</ul> : <p>Belum ada aset.</p>)}
   </section>

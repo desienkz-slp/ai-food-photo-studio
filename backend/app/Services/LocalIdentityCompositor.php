@@ -12,7 +12,7 @@ use RuntimeException;
  */
 class LocalIdentityCompositor implements ImageEditor
 {
-    public function render(string $original, ?string $prompt = null): EditedImage
+    public function render(string $original, ?string $prompt = null, ?string $size = null): EditedImage
     {
         $info = @getimagesizefromstring($original);
         if (! $info || $info[0] < 1 || $info[1] < 1 || $info[0] > 2048 || $info[1] > 2048 || $info[0] * $info[1] > 1000000) {

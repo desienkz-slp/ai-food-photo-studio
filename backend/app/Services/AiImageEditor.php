@@ -18,17 +18,22 @@ final class AiImageEditor implements ImageEditor
     private const CONNECT_TIMEOUT_SEC = 5;
     private const TOTAL_TIMEOUT_SEC = 60;
     private const ALLOWED_MIME = ['image/png' => 'png', 'image/jpeg' => 'jpg'];
+    private const ALLOWED_SIZES = ['512x512', '1024x1024'];
 
     public function __construct(
         private readonly HttpFactory $http,
         private readonly LocalIdentityCompositor $fallback,
     ) {}
 
-    public function render(string $original, ?string $prompt = null): EditedImage
+    public function render(string $original, ?string $prompt = null, ?string $size = null): EditedImage
     {
         // No instruction: nothing for the model to do. Preserve the image.
         if ($prompt === null || trim($prompt) === '') {
-            return $this->fallback->render($original, $prompt);
+            return $this->fallback->render($original, $prompt, $size);
+        }
+        // Ignore an unrecognized size rather than fail the whole edit.
+        if ($size !== null && ! in_array($size, self::ALLOWED_SIZES, true)) {
+            $size = null;
         }
 
         $provider = ProviderConfiguration::query()
@@ -53,6 +58,7 @@ final class AiImageEditor implements ImageEditor
             ->post($endpoint.'/images/edits', array_filter([
                 'model' => $model !== '' ? $model : null,
                 'prompt' => $prompt,
+                'size' => $size,
                 'response_format' => 'b64_json',
                 'n' => '1',
             ]));

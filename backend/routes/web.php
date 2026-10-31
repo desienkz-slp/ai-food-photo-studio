@@ -42,5 +42,6 @@ Route::middleware('auth')->get('/workspaces/{workspace}/assets/{asset}/processin
 Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions', [\App\Http\Controllers\AssetVersionController::class, 'store']);
 Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/approval', [\App\Http\Controllers\ApprovalExportController::class, 'approve']);
 Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/export', [\App\Http\Controllers\ApprovalExportController::class, 'export']);
+Route::middleware('auth')->get('/workspaces/{workspace}/assets/{asset}/versions/{version}/processing-jobs', [\App\Http\Controllers\ProcessingJobController::class, 'index']);
 Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/processing-jobs', [\App\Http\Controllers\ProcessingJobController::class, 'store']);
 Route::middleware('auth')->get('/workspaces/{workspace}/exports/{export}', [\App\Http\Controllers\ApprovalExportController::class, 'download']);

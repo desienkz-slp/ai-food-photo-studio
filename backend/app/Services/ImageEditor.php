@@ -8,5 +8,5 @@ interface ImageEditor
      * prompt. Implementations must enforce a bounded time budget and must throw
      * on any failure (never return unverified output).
      */
-    public function render(string $original, ?string $prompt = null): EditedImage;
+    public function render(string $original, ?string $prompt = null, ?string $size = null): EditedImage;
 }

@@ -48,6 +48,19 @@ class AiImageEditorTest extends TestCase
             && $request->url() === 'https://api.example.com/v1/images/edits');
     }
 
+    public function test_forwards_valid_size_and_drops_invalid(): void
+    {
+        $this->provider();
+        $png = $this->pngBytes();
+        Http::fake(['*' => Http::response(['data' => [['b64_json' => base64_encode($png)]]])]);
+
+        app(AiImageEditor::class)->render($this->pngBytes(), 'edit', '1024x1024');
+        Http::assertSent(fn ($request) => collect($request->data())->contains(fn ($part) => $part['name'] === 'size' && $part['contents'] === '1024x1024'));
+
+        app(AiImageEditor::class)->render($this->pngBytes(), 'edit', 'evil-9999');
+        Http::assertSent(fn ($request) => ! collect($request->data())->contains(fn ($part) => $part['name'] === 'size'));
+    }
+
     public function test_without_prompt_falls_back_to_identity_and_sends_no_request(): void
     {
         $this->provider();
