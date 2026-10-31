@@ -18,7 +18,7 @@ Seeder (`php artisan db:seed`) membuat satu akun super admin dan workspace defau
 
 | Peran | Nama | Email (login) | Password |
 | --- | --- | --- | --- |
-| Super admin | `superadmin` | `superadmin@food-photo.local` | `photosuper` |
+| Super admin | `superadmin` | `superadmin@photo.netora.id` | `photosuper` |
 
 Workspace default: **Dapur Utama** (super admin sebagai `owner`).
 

@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         // Default super admin. Email is the login identifier; "superadmin" is
         // the display name and "photosuper" the initial password.
         $admin = User::firstOrCreate(
-            ['email' => 'superadmin@food-photo.local'],
+            ['email' => 'superadmin@photo.netora.id'],
             ['name' => 'superadmin', 'password' => Hash::make('photosuper')],
         );
 
