@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProviderConfiguration extends Model
 {
-    protected $fillable = ['type', 'name', 'endpoint', 'model', 'api_key'];
+    protected $fillable = ['type', 'communication_mode', 'name', 'endpoint', 'model', 'api_key'];
 
     protected $hidden = ['api_key'];
 

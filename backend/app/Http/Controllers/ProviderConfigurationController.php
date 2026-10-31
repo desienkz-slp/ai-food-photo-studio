@@ -23,6 +23,7 @@ class ProviderConfigurationController extends Controller
         $this->authorizeManagement($request, $workspace);
         $data = $request->validate([
             'type' => ['required', 'string', Rule::in(['openai-compatible', 'other']), 'max:100'],
+            'communication_mode' => ['sometimes', 'string', Rule::in(['chat', 'message', 'response'])],
             'name' => ['nullable', 'string', 'max:100'],
             'endpoint' => ['nullable', 'url:https', 'max:2048', function (string $attribute, mixed $value, \Closure $fail): void {
                 $parts = parse_url($value);
@@ -41,6 +42,7 @@ class ProviderConfigurationController extends Controller
         $created = ! $provider->exists;
         $provider->workspace_id = $workspace->id;
         $provider->type = $data['type'];
+        $provider->communication_mode = $data['communication_mode'] ?? $provider->communication_mode ?? 'chat';
         $provider->model = $data['model'];
         $provider->name = $data['name'] ?? $provider->name;
         $provider->endpoint = $data['endpoint'] ?? $provider->endpoint;

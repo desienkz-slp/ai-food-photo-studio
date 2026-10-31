@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 
-type Provider = { type: string; model: string; name?: string; endpoint?: string }
+type Provider = { type: string; communication_mode?: string; model: string; name?: string; endpoint?: string }
 
 function csrfToken() {
   const value = document.cookie.split('; ').find((item) => item.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length)
@@ -14,6 +14,7 @@ export function ProviderSettings({ workspaces = [] }: { workspaces?: { id: numbe
   const [workspace, setWorkspace] = useState('')
   const [providers, setProviders] = useState<Provider[] | null>(null)
   const [type, setType] = useState('')
+  const [mode, setMode] = useState('chat')
   const [name, setName] = useState('')
   const [endpoint, setEndpoint] = useState('')
   const [model, setModel] = useState('')
@@ -54,7 +55,7 @@ export function ProviderSettings({ workspaces = [] }: { workspaces?: { id: numbe
     if (!key && !providers.some((provider) => provider.type === type)) { setError('API key diperlukan untuk provider baru.'); return }
     setBusy(true); setError(''); setMessage('')
     try {
-      const response = await fetch(url, { method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token }, body: JSON.stringify({ type, model: model.trim(), ...(name.trim() ? { name: name.trim() } : {}), ...(endpoint.trim() ? { endpoint: endpoint.trim() } : {}), ...(key ? {api_key: key} : {}) }) })
+      const response = await fetch(url, { method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token }, body: JSON.stringify({ type, communication_mode: mode, model: model.trim(), ...(name.trim() ? { name: name.trim() } : {}), ...(endpoint.trim() ? { endpoint: endpoint.trim() } : {}), ...(key ? {api_key: key} : {}) }) })
       if (!response.ok) { if (response.status === 401 || response.status === 403 || response.status === 419) setProviders(null); setError(failure(response.status)); return }
       const result = await response.json()
       if (result.data?.type !== type || result.data?.model !== model.trim()) throw new Error()
@@ -74,6 +75,7 @@ export function ProviderSettings({ workspaces = [] }: { workspaces?: { id: numbe
       <label>Nama provider<input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} /></label>
       <label>Endpoint HTTPS<input type="url" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} maxLength={2048} /></label>
       <label>Tipe provider<select value={type} onChange={(event) => setType(event.target.value)}><option value="">Pilih tipe provider</option><option value="openai-compatible">Kompatibel OpenAI</option><option value="other">Lainnya</option></select></label>
+      <label>Tipe komunikasi<select value={mode} onChange={(event) => setMode(event.target.value)}><option value="chat">Chat</option><option value="message">Message</option><option value="response">Response</option></select></label>
       <label>API key<input ref={keyRef} name="api-key" type="password" autoComplete="new-password" maxLength={4096} /></label>
       <label>Model manual<input value={model} onChange={(event) => setModel(event.target.value)} maxLength={255} /></label>
       <p>Memuat daftar model belum tersedia. Untuk provider yang sudah ada, API key kosong mempertahankan key sebelumnya.</p>

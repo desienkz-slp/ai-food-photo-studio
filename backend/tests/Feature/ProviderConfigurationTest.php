@@ -126,4 +126,24 @@ class ProviderConfigurationTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.type', 'openai-compatible')
             ->assertJsonPath('data.model', 'manual-model')->assertJsonMissingPath('data.api_key');
     }
+
+    public function test_communication_mode_is_saved_and_defaults_to_chat(): void
+    {
+        $user = User::factory()->create();
+        $workspace = Workspace::factory()->create();
+        $workspace->users()->attach($user, ['role' => 'owner']);
+        $url = "/workspaces/{$workspace->id}/providers";
+
+        $this->actingAs($user)->postJson($url, [
+            'type' => 'openai-compatible', 'communication_mode' => 'response',
+            'model' => 'm', 'api_key' => 'secret',
+        ])->assertCreated()->assertJsonPath('data.communication_mode', 'response');
+
+        // Omitting the field keeps backward compatibility with a chat default.
+        $this->postJson($url, ['type' => 'other', 'model' => 'm', 'api_key' => 'secret'])
+            ->assertCreated()->assertJsonPath('data.communication_mode', 'chat');
+
+        $this->postJson($url, ['type' => 'other', 'communication_mode' => 'invalid', 'model' => 'm', 'api_key' => 'secret'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['communication_mode']);
+    }
 }

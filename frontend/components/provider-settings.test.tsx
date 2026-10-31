@@ -31,7 +31,7 @@ describe('Pengaturan provider', () => {
     await user.type(screen.getByLabelText('API key'), 'secret-test-key')
     await user.click(screen.getByRole('button', {name: 'Simpan pengaturan'}))
     await screen.findByText(/pengaturan provider tersimpan/i)
-    expect(fetcher).toHaveBeenLastCalledWith('/workspaces/42/providers', expect.objectContaining({method: 'POST', credentials: 'include', headers: expect.objectContaining({'X-XSRF-TOKEN': 'token+value'}), body: JSON.stringify({type: 'other', model: 'm1', api_key: 'secret-test-key'})}))
+    expect(fetcher).toHaveBeenLastCalledWith('/workspaces/42/providers', expect.objectContaining({method: 'POST', credentials: 'include', headers: expect.objectContaining({'X-XSRF-TOKEN': 'token+value'}), body: JSON.stringify({type: 'other', communication_mode: 'chat', model: 'm1', api_key: 'secret-test-key'})}))
     expect(screen.getByLabelText('API key')).toHaveValue('')
     expect(storage).not.toHaveBeenCalled()
     expect(log).not.toHaveBeenCalled()
