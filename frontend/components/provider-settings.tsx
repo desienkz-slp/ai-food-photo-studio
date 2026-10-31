@@ -41,7 +41,18 @@ export function ProviderSettings() {
       if (!response.ok) { setError(failure(response.status)); return }
       const result = await response.json()
       if (!Array.isArray(result.data) || !result.data.every((item: Provider) => typeof item.type === 'string' && typeof item.model === 'string')) throw new Error()
-      setProviders(result.data.map((item: Provider) => ({type: item.type, model: item.model})))
+      const saved: Provider[] = result.data.map((item: Provider) => ({ type: item.type, model: item.model, name: item.name, endpoint: item.endpoint, communication_mode: item.communication_mode }))
+      setProviders(saved)
+      // Pre-fill the form with the current (single, global) provider so edits
+      // start from what is stored. API key is never returned; leave it blank.
+      const current = saved[0]
+      if (current) {
+        setType(current.type)
+        setModel(current.model)
+        if (current.name) setName(current.name)
+        if (current.endpoint) setEndpoint(current.endpoint)
+        if (current.communication_mode) setMode(current.communication_mode)
+      }
       setMessage('Pengaturan provider dimuat.')
     } catch { setError('Sesi atau koneksi tidak tersedia. Pengaturan tidak dapat dimuat.') }
     finally { setBusy(false) }
