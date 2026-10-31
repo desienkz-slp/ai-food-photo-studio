@@ -12,6 +12,18 @@ Prototipe aplikasi untuk membantu pengeditan foto makanan dan minuman dengan men
 
 Penggunaan provider eksternal dan transfer foto memerlukan persetujuan tersendiri. Gunakan hanya data uji lokal; jangan masukkan secrets atau foto sensitif ke repository.
 
+## Akun default
+
+Seeder (`php artisan db:seed`) membuat satu akun super admin dan workspace default secara idempotent. Login memakai **email** sebagai identifier.
+
+| Peran | Nama | Email (login) | Password |
+| --- | --- | --- | --- |
+| Super admin | `superadmin` | `superadmin@food-photo.local` | `photosuper` |
+
+Workspace default: **Dapur Utama** (super admin sebagai `owner`).
+
+> **PENTING:** Ganti password default segera setelah login pertama di lingkungan nyata. Seeder bersifat idempotent (`firstOrCreate`) sehingga menjalankannya ulang saat deploy tidak menimpa password yang sudah diubah.
+
 ## Instalasi server lengkap (Debian/Ubuntu)
 
 Untuk memasang dependency OS, clone release, build aplikasi, membuat service systemd, memasang reverse proxy Nginx, dan mengaktifkan service, gunakan satu script berikut. `git clone` sendiri **tidak** mengeksekusi script secara otomatis.

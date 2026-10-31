@@ -1,3 +1,17 @@
+# Walkthrough — Halaman Login + Perbaikan "Belum bisa simpan pengaturan"
+
+## Halaman Login (terbaru, commit `40e05df`)
+Dibuat halaman login khusus tema **classic** yang menggerbang seluruh app:
+- `AuthPanel` kini menerima `children`. Saat belum login → tampil layar penuh
+  (card parchment/burgundy, judul "Selamat Datang", field Email/Password, tombol "Masuk").
+- Saat sudah login → muncul **session bar** ("Sesi aktif" + Logout) dan konten workspace dirender.
+- CSS baru: `.login-screen`, `.login-card`, `.session-bar` di `globals.css`.
+- Tes diselaraskan; **16/16 vitest lulus**, `next build` sukses, deploy ke `ai-image` aktif.
+
+Login (sama seperti sebelumnya): `admin@food-photo.local` / `ChangeMe123!` di http://172.18.20.148:8089/
+
+---
+
 # Walkthrough — Perbaikan "Belum bisa simpan pengaturan"
 
 ## Gejala

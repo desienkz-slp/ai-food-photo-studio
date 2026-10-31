@@ -142,6 +142,9 @@ run "$RELEASE_DIR/scripts/install-release.sh" --install
 # Migrations run by default; set RUN_MIGRATIONS=0 to skip explicitly.
 if [[ "$RUN_MIGRATIONS" == 1 ]]; then
   run bash -c "cd '$RELEASE_DIR/backend' && set -a && . '$ENV_FILE' && set +a && php artisan migrate --force"
+  # Idempotent seed: ensures the default superadmin + workspace exist. Safe to
+  # re-run; firstOrCreate won't duplicate or reset an existing password.
+  run bash -c "cd '$RELEASE_DIR/backend' && set -a && . '$ENV_FILE' && set +a && php artisan db:seed --force"
 fi
 
 # Laravel writes to storage/ and bootstrap/cache/; www-data must own the release tree.
