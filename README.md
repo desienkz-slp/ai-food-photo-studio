@@ -12,9 +12,114 @@ Prototipe aplikasi untuk membantu pengeditan foto makanan dan minuman dengan men
 
 Penggunaan provider eksternal dan transfer foto memerlukan persetujuan tersendiri. Gunakan hanya data uji lokal; jangan masukkan secrets atau foto sensitif ke repository.
 
-## Bootstrap release (eksplisit)
+## Instalasi server lengkap (Debian/Ubuntu)
 
-Clone sendiri tidak menjalankan instalasi atau Git hook. Setelah meninjau source dan lockfile pada checkout release baru, operator dapat menjalankan `DRY_RUN=1 ./scripts/install-release.sh --install`, lalu secara eksplisit `./scripts/install-release.sh --install`. Perintah kedua mengunduh dependensi dan menjalankan build frontend; jangan jalankan pada server tanpa persetujuan deployment. Lihat [rencana deployment](docs/NATIVE_DEPLOYMENT_PLAN.md) untuk prasyarat, konfigurasi eksternal, keterbatasan dan approval. Migrasi selalu manual dan memerlukan persetujuan terpisah; bootstrap tidak mengaktifkan layanan. Aplikasi tetap belum siap produksi.
+Untuk memasang dependency OS, clone release, build aplikasi, membuat service systemd, memasang reverse proxy Nginx, dan mengaktifkan service, gunakan satu script berikut. `git clone` sendiri **tidak** mengeksekusi script secara otomatis.
+
+### 1. Prasyarat dan backup
+
+- Server Debian/Ubuntu dengan akses `root`/`sudo`, akses outbound ke GitHub dan repository.
+- DNS atau alamat host yang akan dipakai pengguna.
+- Backup database dan storage sebelum migration/aktivasi.
+- Siapkan konfigurasi aplikasi di luar Git; jangan commit `.env`, password, token, API key, atau connection string.
+- Script saat ini mengasumsikan package manager `apt-get` dan nama paket PHP 8.3 tersedia pada repository OS.
+
+### 2. Clone installer
+
+```sh
+cd /tmp
+git clone --branch main \
+  https://github.com/desienkz-slp/ai-food-photo-studio.git \
+  ai-food-photo-studio-installer
+cd ai-food-photo-studio-installer
+```
+
+Verifikasi release yang akan digunakan:
+
+```sh
+git rev-parse HEAD
+git status --short
+```
+
+### 3. Siapkan konfigurasi eksternal
+
+Buat file konfigurasi yang hanya dapat dibaca service. Jangan menyalin nilai secret ke README, terminal history, atau log:
+
+```sh
+sudo install -d -m 0750 /etc/food-photo-studio
+sudo install -m 0640 -o root -g www-data /dev/null \
+  /etc/food-photo-studio/backend.env
+# Isi backend.env melalui mekanisme secret management yang disetujui.
+```
+
+Minimal, sesuaikan nilai yang diwajibkan oleh `backend/.env.example`, termasuk `APP_KEY`, `APP_URL`, dan koneksi database. Validasi format tanpa mencetak nilainya.
+
+### 4. Dry-run
+
+```sh
+sudo DRY_RUN=1 RELEASE_ID=$(date -u +%Y%m%d%H%M%S) \
+  ./scripts/install-and-activate.sh --dry-run
+```
+
+Dry-run tidak memasang paket, clone, menulis konfigurasi, membuat service, migration, atau mengaktifkan proses.
+
+### 5. Instalasi dan aktivasi
+
+Setelah backup, konfigurasi, dan rollback plan disetujui:
+
+```sh
+sudo RELEASE_ID=$(date -u +%Y%m%d%H%M%S) \
+  ./scripts/install-and-activate.sh
+```
+
+Urutan script:
+
+1. Install Git, Nginx, PHP 8.3/FPM, extension PHP, Composer, Node.js, dan npm.
+2. Clone release ke `/opt/food-photo-studio/releases/<release-id>`.
+3. Jalankan `scripts/install-release.sh --install` untuk Composer dependency, npm dependency, dan frontend build.
+4. Tulis unit `food-photo-backend.service` dan `food-photo-frontend.service`.
+5. Tulis Nginx reverse proxy dan symlink `/opt/food-photo-studio/current`.
+6. Jalankan `nginx -t`, `systemctl daemon-reload`, dan `systemctl enable --now`.
+7. Migration **tidak** dijalankan kecuali operator memberikan flag eksplisit.
+
+### 6. Migration database (gate terpisah)
+
+Setelah backup database diverifikasi dan migration disetujui secara eksplisit:
+
+```sh
+sudo RUN_MIGRATIONS=1 RELEASE_ID=<release-id> \
+  ./scripts/install-and-activate.sh
+```
+
+Jangan mengaktifkan migration berulang tanpa memahami status database. Script tidak menyediakan rollback migration otomatis.
+
+### 7. Verifikasi service dan web
+
+```sh
+sudo systemctl status food-photo-backend food-photo-frontend nginx --no-pager
+sudo journalctl -u food-photo-backend -u food-photo-frontend -n 100 --no-pager
+curl -fsS http://127.0.0.1/
+curl -fsS http://127.0.0.1:8000/up
+```
+
+Kemudian akses dari browser menggunakan `http://<server-host>/`. Jika health check gagal, jangan hapus release lama; hentikan aktivasi dan rollback symlink ke release sebelumnya.
+
+### 8. Rollback
+
+Pertahankan semua direktori release. Untuk rollback aplikasi yang belum menjalankan migration inkompatibel:
+
+```sh
+sudo ln -sfn /opt/food-photo-studio/releases/<previous-release> /opt/food-photo-studio/current
+sudo systemctl restart food-photo-backend food-photo-frontend
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Detail prasyarat, backup, konfigurasi, dan batasan ada di [rencana deployment](docs/NATIVE_DEPLOYMENT_PLAN.md). Script tidak membuat secret, tidak menampilkan secret, dan tidak mengeksekusi Git hook.
+
+## Bootstrap release (dependency saja)
+
+Jika hanya ingin memasang dependency dan build tanpa mengaktifkan service, jalankan `DRY_RUN=1 ./scripts/install-release.sh --install`, lalu secara eksplisit `./scripts/install-release.sh --install`. Migrasi tetap manual dan memerlukan approval terpisah.
+
 
 ## Build dan test lokal
 
