@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EditHistory;
 use App\Services\AiPhotoEditor;
+use App\Services\AiVisionAnalyzer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -58,6 +59,44 @@ class PhotoEditController extends Controller
             'ext' => $result->ext,
             'created_at' => $history->created_at,
         ]]);
+    }
+
+    /**
+     * Use the vision model to turn selected template presets + the user's text
+     * into one refined, concrete English edit instruction. Returns text only;
+     * the user reviews/edits it before running the actual edit.
+     */
+    public function enhance(Request $request, AiVisionAnalyzer $analyzer): JsonResponse
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'file', 'mimes:png,jpg,jpeg,webp', 'max:'.self::MAX_UPLOAD_KB],
+            'instruction' => ['nullable', 'string', 'max:2000'],
+            'templates' => ['nullable', 'array', 'max:20'],
+            'templates.*' => ['string', 'max:200'],
+        ]);
+
+        $bytes = (string) file_get_contents($validated['image']->getRealPath());
+        $info = @getimagesizefromstring($bytes);
+        abort_unless($info && in_array($info['mime'], ['image/png', 'image/jpeg', 'image/webp'], true), 422, 'Unsupported image.');
+
+        $templates = array_values(array_filter($validated['templates'] ?? []));
+        $wishlist = trim(($templates ? ('Selected goals: '.implode('; ', $templates).'. ') : '')
+            .'User note: '.(trim((string) ($validated['instruction'] ?? '')) ?: '(none)'));
+
+        // Meta-prompt: ask the vision model to look at the photo and produce a
+        // single, specific food-photography edit instruction in English.
+        $meta = 'You are a food-photography editing assistant. Look at this photo and the '
+            .'desired goals, then write ONE concise, concrete editing instruction (max 80 words, '
+            .'English, no preamble, no bullet points) that preserves the original dish, plating and '
+            .'composition while achieving the goals. '.$wishlist;
+
+        try {
+            $prompt = $analyzer->analyze($bytes, $info['mime'], $meta);
+        } catch (\RuntimeException $exception) {
+            return response()->json(['message' => 'Prompt tidak dapat dikembangkan. Periksa model vision dan provider.'], 502);
+        }
+
+        return response()->json(['data' => ['instruction' => trim($prompt)]]);
     }
 
     /** List the current user's recent edit history (metadata only). */

@@ -9,18 +9,33 @@ function tokenFromCookie() {
 
 type HistoryItem = { id: number; instruction: string; created_at?: string }
 
+// Preset editing goals shown as checkboxes; the vision model turns the selected
+// ones + the user's note into one refined instruction.
+const TEMPLATES = [
+  'Ganti/bersihkan latar belakang jadi rapi',
+  'Cahaya studio hangat & merata',
+  'Tambah uap mengepul (kesan panas)',
+  'Tingkatkan warna & saturasi makanan',
+  'Pertajam detail & tekstur',
+  'Tambah garnish segar (daun/cabai)',
+  'Buang objek pengganggu di sekitar',
+  'Gaya flat-lay top-down profesional',
+]
+
 /**
- * ChatGPT-style photo editor: upload a photo, type an instruction, get an
- * edited image back inline. Each result chains as the next input for iterative
- * edits. Results are persisted server-side and listed as downloadable history.
+ * ChatGPT-style photo editor: upload a photo, pick template goals and/or type a
+ * note, optionally let the vision model refine it into a strong instruction,
+ * then edit. Results are persisted server-side as downloadable history.
  */
 export function PhotoEditor() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [inputImage, setInputImage] = useState('')
   const [instruction, setInstruction] = useState('')
+  const [picked, setPicked] = useState<string[]>([])
   const [latest, setLatest] = useState('')
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [busy, setBusy] = useState(false)
+  const [enhancing, setEnhancing] = useState(false)
   const [error, setError] = useState('')
 
   async function loadHistory() {
@@ -43,15 +58,43 @@ export function PhotoEditor() {
     reader.readAsDataURL(file)
   }
 
+  function toggle(template: string) {
+    setPicked((prev) => prev.includes(template) ? prev.filter((t) => t !== template) : [...prev, template])
+  }
+
+  async function buildForm() {
+    const blob = await (await fetch(inputImage)).blob()
+    const form = new FormData()
+    form.append('image', blob, 'photo')
+    return form
+  }
+
+  async function enhance() {
+    if (enhancing || busy || !inputImage || (picked.length === 0 && !instruction.trim())) return
+    const token = tokenFromCookie()
+    if (!token) { setError('Cookie CSRF tidak tersedia. Muat ulang halaman.'); return }
+    setEnhancing(true); setError('')
+    try {
+      const form = await buildForm()
+      if (instruction.trim()) form.append('instruction', instruction.trim())
+      picked.forEach((t) => form.append('templates[]', t))
+      const response = await fetch('/photo-edit/enhance', { method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store', headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token }, body: form })
+      if (!response.ok) { setError(response.status === 502 ? 'Prompt tidak dapat dikembangkan. Periksa model vision.' : 'Gagal mengembangkan prompt. Periksa sesi dan koneksi.'); return }
+      const result = await response.json()
+      const refined = result?.data?.instruction
+      if (typeof refined === 'string' && refined.trim()) setInstruction(refined.trim())
+      else setError('Model tidak mengembalikan prompt.')
+    } catch { setError('Gagal mengembangkan prompt. Periksa sesi dan koneksi.') }
+    finally { setEnhancing(false) }
+  }
+
   async function submit() {
     if (busy || !inputImage || !instruction.trim()) return
     const token = tokenFromCookie()
     if (!token) { setError('Cookie CSRF tidak tersedia. Muat ulang halaman.'); return }
     setBusy(true); setError('')
     try {
-      const blob = await (await fetch(inputImage)).blob()
-      const form = new FormData()
-      form.append('image', blob, 'photo')
+      const form = await buildForm()
       form.append('instruction', instruction.trim())
       const response = await fetch('/photo-edit', { method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store', headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token }, body: form })
       if (!response.ok) { setError(response.status === 502 ? 'Foto tidak dapat diedit. Periksa model edit gambar.' : (response.status === 422 ? 'Foto atau instruksi tidak valid.' : 'Pengeditan gagal. Periksa sesi dan koneksi.')); return }
@@ -67,21 +110,33 @@ export function PhotoEditor() {
   }
 
   function reset() {
-    setLatest(''); setInputImage(''); setInstruction(''); setError('')
+    setLatest(''); setInputImage(''); setInstruction(''); setPicked([]); setError('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  const locked = busy || enhancing
   return <section className="card photo-editor" aria-labelledby="editor-heading">
     <h2 id="editor-heading">Edit foto (AI)</h2>
-    <p>Unggah foto lalu ketik instruksi, seperti di ChatGPT. Hasil menjadi dasar edit berikutnya dan tersimpan di riwayat untuk diunduh.</p>
-    <label>Foto<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => pickFile(event.target.files?.[0] || null)} /></label>
+    <p>Unggah foto, pilih template tujuan, lalu kembangkan prompt dengan AI atau langsung kirim. Hasil tersimpan di riwayat untuk diunduh.</p>
+    <label>Foto<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" disabled={locked} onChange={(event) => pickFile(event.target.files?.[0] || null)} /></label>
     {inputImage && <div className="image-preview"><img src={inputImage} alt="Foto saat ini" loading="lazy" /></div>}
-    <label className="prompt-field">Instruksi edit<textarea value={instruction} maxLength={2000} disabled={busy} placeholder="mis. ganti latar jadi kayu rustic, cahaya hangat, tambah uap mengepul" onChange={(event) => setInstruction(event.target.value)} /></label>
+
+    <fieldset className="edit-templates" disabled={locked}>
+      <legend>Template tujuan</legend>
+      {TEMPLATES.map((template) => <label key={template} className="template-option">
+        <input type="checkbox" checked={picked.includes(template)} onChange={() => toggle(template)} />
+        <span>{template}</span>
+      </label>)}
+    </fieldset>
+
+    <label className="prompt-field">Instruksi edit<textarea value={instruction} maxLength={2000} disabled={locked} placeholder="mis. ganti latar jadi kayu rustic, cahaya hangat, tambah uap mengepul" onChange={(event) => setInstruction(event.target.value)} /></label>
     {error && <p role="alert">{error}</p>}
     <div className="provider-actions">
-      <button type="button" disabled={busy || !inputImage || !instruction.trim()} onClick={submit}>{busy ? 'Mengedit…' : 'Kirim edit'}</button>
-      {(latest || inputImage) && <button type="button" disabled={busy} onClick={reset}>Mulai baru</button>}
+      <button type="button" disabled={locked || !inputImage || (picked.length === 0 && !instruction.trim())} onClick={enhance}>{enhancing ? 'Mengembangkan…' : 'Kembangkan prompt (AI)'}</button>
+      <button type="button" disabled={locked || !inputImage || !instruction.trim()} onClick={submit}>{busy ? 'Mengedit…' : 'Kirim edit'}</button>
+      {(latest || inputImage) && <button type="button" disabled={locked} onClick={reset}>Mulai baru</button>}
     </div>
+
     {history.length > 0 && <div className="edit-history">
       <h3>Riwayat hasil</h3>
       <ol className="edit-turns">{history.map((item) => <li key={item.id}>

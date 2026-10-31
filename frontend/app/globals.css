@@ -418,6 +418,12 @@ a[href]:hover { color: var(--burgundy-deep); border-bottom-color: var(--burgundy
   word-break: break-word;
 }
 
+.edit-templates { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 14px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+.edit-templates legend { font-weight: 600; padding: 0 6px; }
+.template-option { display: flex; align-items: center; gap: 8px; font-weight: 400; cursor: pointer; }
+.template-option input { width: auto; margin: 0; }
+@media (max-width: 640px) { .edit-templates { grid-template-columns: 1fr; } }
+
 .edit-turns { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
 .edit-turns > li { padding-top: 14px; border-top: 1px dashed var(--line); }
 .edit-instruction { font-weight: 600; margin: 0 0 8px; }
