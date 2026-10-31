@@ -1,3 +1,17 @@
+# Walkthrough — Fase 4: Variasi, Ukuran, Riwayat (commit `c2ed72b`)
+
+- **Migration** `2026_11_01_000017`: kolom nullable `size` di `processing_jobs`.
+- **`AiImageEditor`**: terima `size` (whitelist `512x512`,`1024x1024`), kirim ke provider; ukuran tak dikenal diabaikan (tak menggagalkan edit).
+- **`ProcessingJobController`**: validasi `size` (`in:512x512,1024x1024`), simpan di job. Endpoint baru `GET .../versions/{version}/processing-jobs` → daftar kandidat sukses (id, sha, prompt, size, waktu) untuk grid variasi + riwayat prompt.
+- **Frontend**: pemilih Ukuran, tombol "Muat variasi", grid variasi (figure + caption size/prompt). Tiap generate disimpan ke riwayat.
+- **Variasi**: panggil generate berkali-kali = banyak kandidat; approval tetap memilih satu `job_id` (kontrak lama tak berubah).
+
+### Verifikasi nyata (server, `c2ed72b`)
+- `size` column ada. Generate 2 variasi (512/1024) → `201`. List kandidat → `200`, kedua variasi tampil dengan `size`, urut terbaru.
+- Lokal: frontend 16/16 lulus, PHP lint bersih, `next build` sukses.
+
+---
+
 # Walkthrough — Editing Gambar AI (Fase 1–3, commit `a55614f`)
 
 Pipeline aset diubah dari identity-only (output `.rgb` mentah) menjadi editing gambar AI gaya "GPT image panel".
