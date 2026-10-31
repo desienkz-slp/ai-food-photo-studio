@@ -19,6 +19,21 @@ class ProviderConfigurationController extends Controller
         return response()->json(['data' => ProviderConfiguration::all()]);
     }
 
+    /**
+     * Return the live model list for a stored provider type. Super admin only.
+     */
+    public function models(Request $request, string $type, \App\Services\ReadOnlyModelLoader $loader): JsonResponse
+    {
+        abort_unless($request->user()->is_super_admin, 403);
+        $provider = ProviderConfiguration::where('type', $type)->first();
+        abort_unless($provider, 404);
+        try {
+            return response()->json(['data' => $loader->load($provider)]);
+        } catch (\RuntimeException $exception) {
+            return response()->json(['message' => 'Daftar model tidak dapat dimuat.'], 502);
+        }
+    }
+
     public function store(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_super_admin, 403);

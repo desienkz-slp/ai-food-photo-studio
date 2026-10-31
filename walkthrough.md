@@ -1,3 +1,22 @@
+# Walkthrough — Provider Global (dikelola superadmin)
+
+## Perubahan arsitektur provider (commit `3897b50`)
+Provider AI kini **global**: diatur hanya oleh superadmin, dipakai semua tenant.
+
+- **users**: kolom baru `is_super_admin` (boolean). superadmin=true.
+- **provider_configurations**: `workspace_id` jadi nullable, unik per `type` (satu set global). Data lama diciutkan non-destruktif (keep newest per type).
+- **Backend**: route baru `GET/POST /providers`. GET untuk semua user auth, POST hanya superadmin (403 untuk lainnya). `/session` kini mengembalikan `is_super_admin`.
+- **nginx**: rute `/providers` di-proxy ke Laravel (sebelumnya jatuh ke Next.js → 404).
+- **Frontend**: panel "Pengaturan provider" global (tanpa dropdown workspace) dan hanya tampil untuk superadmin.
+
+### Verifikasi nyata (server)
+- superadmin: `GET /providers`=200, `POST /providers`=200.
+- user biasa: `GET`=200, `POST`=**403**.
+- `/session` superadmin: `is_super_admin:true`.
+- Tes: frontend 16/16 lulus, semua PHP lint bersih, `next build` sukses.
+
+---
+
 # Walkthrough — Halaman Login + Perbaikan "Belum bisa simpan pengaturan"
 
 ## Halaman Login (terbaru, commit `40e05df`)

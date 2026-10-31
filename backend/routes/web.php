@@ -18,6 +18,7 @@ Route::middleware(['auth', 'throttle:10,1'])->get('/workspaces/{workspace}/updat
 // tenants). Reading is allowed for any authenticated user; writing is gated to
 // the super admin inside the controller.
 Route::middleware('auth')->get('/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'index']);
+Route::middleware(['auth', 'throttle:10,1'])->get('/providers/{type}/models', [\App\Http\Controllers\ProviderConfigurationController::class, 'models'])->where('type', 'openai-compatible|other');
 Route::middleware('auth')->post('/providers', [\App\Http\Controllers\ProviderConfigurationController::class, 'store']);
 Route::middleware(['auth', 'throttle:10,1'])->post('/workspaces/{workspace}/assets', [\App\Http\Controllers\AssetController::class, 'store']);
 

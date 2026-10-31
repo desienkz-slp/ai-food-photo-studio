@@ -19,6 +19,7 @@ export function ProviderSettings() {
   const [name, setName] = useState('')
   const [endpoint, setEndpoint] = useState('')
   const [model, setModel] = useState('')
+  const [modelOptions, setModelOptions] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -43,6 +44,20 @@ export function ProviderSettings() {
       setProviders(result.data.map((item: Provider) => ({type: item.type, model: item.model})))
       setMessage('Pengaturan provider dimuat.')
     } catch { setError('Sesi atau koneksi tidak tersedia. Pengaturan tidak dapat dimuat.') }
+    finally { setBusy(false) }
+  }
+
+  async function loadModels() {
+    if (busy || !type) return
+    setBusy(true); setError(''); setMessage('')
+    try {
+      const response = await fetch(`/providers/${type}/models`, { credentials: 'include', headers: { Accept: 'application/json' }, redirect: 'error', cache: 'no-store' })
+      if (!response.ok) { setError(response.status === 502 ? 'Daftar model tidak dapat dimuat dari provider.' : failure(response.status)); return }
+      const result = await response.json()
+      if (!Array.isArray(result.data) || !result.data.every((item: unknown) => typeof item === 'string')) throw new Error()
+      setModelOptions(result.data)
+      setMessage(result.data.length ? `${result.data.length} model dimuat.` : 'Provider tidak mengembalikan model.')
+    } catch { setError('Daftar model tidak dapat dimuat. Periksa endpoint dan API key tersimpan.') }
     finally { setBusy(false) }
   }
 
@@ -76,9 +91,10 @@ export function ProviderSettings() {
       <label>Tipe provider<select value={type} onChange={(event) => setType(event.target.value)}><option value="">Pilih tipe provider</option><option value="openai-compatible">Kompatibel OpenAI</option><option value="other">Lainnya</option></select></label>
       <label>Tipe komunikasi<select value={mode} onChange={(event) => setMode(event.target.value)}><option value="chat">Chat</option><option value="message">Message</option><option value="response">Response</option></select></label>
       <label>API key<input ref={keyRef} name="api-key" type="password" autoComplete="new-password" maxLength={4096} /></label>
-      <label>Model manual<input value={model} onChange={(event) => setModel(event.target.value)} maxLength={255} /></label>
-      <p>Memuat daftar model belum tersedia. Untuk provider yang sudah ada, API key kosong mempertahankan key sebelumnya.</p>
-      <div className="provider-actions"><button type="button" disabled>Muat model</button><button type="submit" disabled={!providers || busy}>{busy ? 'Memproses…' : 'Simpan pengaturan'}</button></div>
+      <label>Model manual<input value={model} onChange={(event) => setModel(event.target.value)} maxLength={255} list="provider-model-options" /></label>
+      {modelOptions.length > 0 && <datalist id="provider-model-options">{modelOptions.map((item) => <option key={item} value={item} />)}</datalist>}
+      <p>Klik “Muat model” untuk mengambil daftar dari provider (butuh pengaturan tersimpan). Anda tetap boleh mengetik model manual. API key kosong mempertahankan key sebelumnya.</p>
+      <div className="provider-actions"><button type="button" disabled={busy || !type || !providers?.some((provider) => provider.type === type)} onClick={loadModels}>{busy ? 'Memuat…' : 'Muat model'}</button><button type="submit" disabled={!providers || busy}>{busy ? 'Memproses…' : 'Simpan pengaturan'}</button></div>
     </form>
   </section>
 }
