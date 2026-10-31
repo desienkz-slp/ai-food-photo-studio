@@ -60,7 +60,8 @@ if command -v apt-get >/dev/null 2>&1; then
   add_ondrej_ppa() {
     local codename; codename="$(lsb_release -cs)"
     run install -d -m 0755 /etc/apt/keyrings
-    run bash -c "curl -4 -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${ONDREJ_KEY}' | gpg --dearmor -o /etc/apt/keyrings/ondrej-php.gpg"
+    # --batch --no-tty: gpg must not try to open /dev/tty when run under nohup.
+    run bash -c "curl -4 -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${ONDREJ_KEY}' | gpg --batch --yes --no-tty --dearmor -o /etc/apt/keyrings/ondrej-php.gpg"
     run bash -c "printf 'deb [signed-by=/etc/apt/keyrings/ondrej-php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu %s main\n' '${codename}' > /etc/apt/sources.list.d/ondrej-php.list"
     run env DEBIAN_FRONTEND=noninteractive apt-get update
   }
