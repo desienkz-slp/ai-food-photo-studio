@@ -92,6 +92,13 @@ class ApprovalExportController extends Controller
             abort(409, 'Export is unavailable or corrupted');
         }
         abort_unless(is_string($contents) && hash_equals($record->sha256, hash('sha256', $contents)), 409, 'Export is unavailable or corrupted');
+        // Serve with the real image type when recognizable so the download is a
+        // usable image; fall back to a binary attachment otherwise.
+        $info = @getimagesizefromstring($contents);
+        $types = ['image/png' => 'png', 'image/jpeg' => 'jpg'];
+        if ($info && isset($types[$info['mime']])) {
+            return response($contents, 200, ['Content-Type' => $info['mime'], 'Content-Disposition' => 'attachment; filename="export.'.$types[$info['mime']].'"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
+        }
         return response($contents, 200, ['Content-Type' => 'application/octet-stream', 'Content-Disposition' => 'attachment; filename="export.bin"', 'Cache-Control' => 'private, no-store']);
     }
 }

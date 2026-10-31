@@ -37,6 +37,8 @@ Route::get('/health', function () {
     ]);
 });
 Route::middleware('auth')->get('/workspaces/{workspace}/assets', [\App\Http\Controllers\AssetVersionController::class, 'index']);
+Route::middleware('auth')->get('/workspaces/{workspace}/assets/{asset}/image', [\App\Http\Controllers\ImageServeController::class, 'original']);
+Route::middleware('auth')->get('/workspaces/{workspace}/assets/{asset}/processing-jobs/{job}/output', [\App\Http\Controllers\ImageServeController::class, 'output']);
 Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions', [\App\Http\Controllers\AssetVersionController::class, 'store']);
 Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/approval', [\App\Http\Controllers\ApprovalExportController::class, 'approve']);
 Route::middleware('auth')->post('/workspaces/{workspace}/assets/{asset}/versions/{version}/export', [\App\Http\Controllers\ApprovalExportController::class, 'export']);

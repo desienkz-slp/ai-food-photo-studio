@@ -14,6 +14,7 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
   const [error, setError] = useState('')
   const [exports, setExports] = useState<Record<number, string>>({})
   const [candidates, setCandidates] = useState<Record<number, Candidate>>({})
+  const [prompts, setPrompts] = useState<Record<number, string>>({})
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadKey, setUploadKey] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -36,7 +37,8 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
     finally { setBusy(false) }
   }
   async function processCandidate(asset: Asset, version: Version): Promise<Candidate | null> {
-    const response = await fetch(`/workspaces/${workspace}/assets/${asset.id}/versions/${version.id}/processing-jobs`, { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': tokenFromCookie() }, body: '{}' })
+    const prompt = (prompts[version.id] || '').trim()
+    const response = await fetch(`/workspaces/${workspace}/assets/${asset.id}/versions/${version.id}/processing-jobs`, { ...options, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': tokenFromCookie() }, body: JSON.stringify(prompt ? { prompt } : {}) })
     if (!response.ok) return null
     const { data } = await response.json()
     return data && Number.isSafeInteger(data.id) && typeof data.output_sha256 === 'string' ? data : null
@@ -99,6 +101,11 @@ export function Assets({ workspaces }: { workspaces: WorkspaceItem[] }) {
     </> : <button type="button" disabled>Unggah foto</button>}
     <button type="button" disabled={!workspace || busy} onClick={load}>Muat aset</button>
     {error && <p role="alert">{error}</p>}
-    {assets && (assets.length ? <ul>{assets.map(a => <li key={a.id}><span>Aset #{a.id} — {a.status || 'committed'}</span>{a.versions.length === 0 && <button type="button" disabled={busy} onClick={() => createVersion(a)}>Buat versi Aset #{a.id}</button>}<ul>{a.versions.map(v => <li key={v.id}>{v.label || `Versi #${v.id}`} — {v.status} {v.status === 'draft' && <button type="button" disabled={busy} onClick={() => action(a, v, 'approval')}>Setujui {v.label || `Versi #${v.id}`}</button>} {v.status === 'approved' && <button type="button" disabled={busy} onClick={() => action(a, v, 'export')}>Ekspor {v.label || `Versi #${v.id}`}</button>} {exports[v.id] && <a href={`/workspaces/${workspace}/exports/${exports[v.id]}`}>Unduh {v.label || `Versi #${v.id}`}</a>}</li>)}</ul></li>)}</ul> : <p>Belum ada aset.</p>)}
+    {assets && (assets.length ? <ul>{assets.map(a => <li key={a.id}><span>Aset #{a.id} — {a.status || 'committed'}</span>
+      <div className="image-preview"><img src={`/workspaces/${workspace}/assets/${a.id}/image`} alt={`Foto asli Aset #${a.id}`} loading="lazy" /></div>
+      {a.versions.length === 0 && <button type="button" disabled={busy} onClick={() => createVersion(a)}>Buat versi Aset #{a.id}</button>}<ul>{a.versions.map(v => <li key={v.id}>{v.label || `Versi #${v.id}`} — {v.status}
+        {v.status === 'draft' && <><label className="prompt-field">Instruksi edit AI (opsional)<textarea value={prompts[v.id] || ''} maxLength={2000} disabled={busy} placeholder="mis. latar kayu rustic, cahaya hangat, uap mengepul" onChange={e => setPrompts(previous => ({ ...previous, [v.id]: e.target.value }))} /></label> <button type="button" disabled={busy} onClick={() => action(a, v, 'approval')}>Proses & setujui {v.label || `Versi #${v.id}`}</button></>}
+        {candidates[v.id] && <div className="image-preview"><img src={`/workspaces/${workspace}/assets/${a.id}/processing-jobs/${candidates[v.id].id}/output`} alt={`Hasil AI ${v.label || `Versi #${v.id}`}`} loading="lazy" /></div>}
+        {v.status === 'approved' && <button type="button" disabled={busy} onClick={() => action(a, v, 'export')}>Ekspor {v.label || `Versi #${v.id}`}</button>} {exports[v.id] && <a href={`/workspaces/${workspace}/exports/${exports[v.id]}`}>Unduh {v.label || `Versi #${v.id}`}</a>}</li>)}</ul></li>)}</ul> : <p>Belum ada aset.</p>)}
   </section>
 }

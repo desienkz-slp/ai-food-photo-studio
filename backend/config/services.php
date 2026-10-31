@@ -33,6 +33,9 @@ return [
             'openai-compatible' => env('MODEL_PROVIDER_OPENAI_ORIGIN'),
             'other' => env('MODEL_PROVIDER_OTHER_ORIGIN'),
         ],
+        // When true, processing jobs call the configured AI provider for real
+        // image edits/generation. When false, the identity fallback is used.
+        'editing_enabled' => (bool) env('MODEL_PROVIDER_EDITING_ENABLED', false),
     ],
 
     'slack' => [
