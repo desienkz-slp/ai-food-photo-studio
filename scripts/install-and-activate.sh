@@ -14,7 +14,7 @@ DOMAIN="${DOMAIN:-172.18.20.148}"
 PUBLIC_PORT="${PUBLIC_PORT:-8089}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
-RUN_MIGRATIONS="${RUN_MIGRATIONS:-0}"
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-1}"
 DRY_RUN="${DRY_RUN:-0}"
 ENV_FILE="${ENV_FILE:-/etc/food-photo-studio/backend.env}"
 RELEASE_DIR="$APP_ROOT/releases/$RELEASE_ID"
@@ -43,25 +43,82 @@ EOF
 if [[ "$DRY_RUN" == 0 && "$(id -u)" != 0 ]]; then fail 'run as root or use DRY_RUN=1'; fi
 
 if command -v apt-get >/dev/null 2>&1; then
-  run apt-get update
-  run env DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip nginx php8.3-fpm php8.3-cli php8.3-gd php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip composer nodejs npm
+  run env DEBIAN_FRONTEND=noninteractive apt-get update
+  # Base tooling needed to add third-party repositories reliably.
+  run env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    git curl ca-certificates unzip gnupg lsb-release software-properties-common
+
+  # PHP 8.3 is not in Ubuntu 22.04 base repos; add Ondrej PPA when absent.
+  if [[ "$DRY_RUN" == 0 ]] && ! php -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' 2>/dev/null; then
+    run add-apt-repository -y ppa:ondrej/php
+    run env DEBIAN_FRONTEND=noninteractive apt-get update
+  elif [[ "$DRY_RUN" == 1 ]]; then
+    run add-apt-repository -y ppa:ondrej/php
+  fi
+
+  # Node.js 18+ is required by Next.js; Ubuntu 22.04 ships Node 12. Add NodeSource 20 when too old.
+  node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+  if [[ "$DRY_RUN" == 1 || "${node_major:-0}" -lt 18 ]]; then
+    run bash -c 'curl -fsSL https://deb.nodesource.com/setup_20.x | env DEBIAN_FRONTEND=noninteractive bash -'
+  fi
+
+  run env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    nginx php8.3-fpm php8.3-cli php8.3-gd php8.3-mbstring php8.3-xml \
+    php8.3-curl php8.3-zip php8.3-sqlite3 php8.3-bcmath php8.3-intl nodejs
+  # Composer installed via official installer to avoid distro version skew.
+  if [[ "$DRY_RUN" == 0 ]] && ! command -v composer >/dev/null 2>&1; then
+    run bash -c 'curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer'
+  fi
 else
   [[ "$DRY_RUN" == 1 ]] || fail 'Debian/Ubuntu apt-get is required'
   log 'apt-get not found locally; dry-run only'
 fi
 
-run install -d -m 0755 "$APP_ROOT/releases" "$APP_ROOT/shared" /etc/food-photo-studio
+run install -d -m 0755 "$APP_ROOT/releases" "$APP_ROOT/shared" "$APP_ROOT/shared/database" /etc/food-photo-studio
+
+# Disable the legacy Python/uvicorn prototype if present so it cannot bind ports.
+if [[ "$DRY_RUN" == 0 ]] && systemctl list-unit-files 2>/dev/null | grep -q '^food-photo-studio\.service'; then
+  run systemctl disable --now food-photo-studio.service || true
+fi
+
+run git clone --branch "$REPO_REF" "$REPO_URL" "$RELEASE_DIR"
+run git -C "$RELEASE_DIR" rev-parse HEAD
+
+# Auto-generate production backend env on first install; never overwrite an existing one.
 if [[ "$DRY_RUN" == 0 ]]; then
-  [[ -f "$ENV_FILE" ]] || fail "missing external config: $ENV_FILE"
+  SQLITE_DB="$APP_ROOT/shared/database/database.sqlite"
+  touch "$SQLITE_DB"
+  chown www-data:www-data "$SQLITE_DB"
+  chmod 0664 "$SQLITE_DB"
+  if [[ ! -f "$ENV_FILE" ]]; then
+    log "generating $ENV_FILE from .env.example"
+    sed \
+      -e 's#^APP_ENV=.*#APP_ENV=production#' \
+      -e 's#^APP_DEBUG=.*#APP_DEBUG=false#' \
+      -e "s#^APP_URL=.*#APP_URL=http://$DOMAIN:$PUBLIC_PORT#" \
+      -e 's#^LOG_LEVEL=.*#LOG_LEVEL=warning#' \
+      -e 's#^DB_CONNECTION=.*#DB_CONNECTION=sqlite#' \
+      "$RELEASE_DIR/backend/.env.example" > "$ENV_FILE"
+    printf 'DB_DATABASE=%s\n' "$SQLITE_DB" >> "$ENV_FILE"
+    # APP_KEY must be generated against this env file.
+    (cd "$RELEASE_DIR/backend" && set -a && . "$ENV_FILE" && set +a && php artisan key:generate --show) \
+      | sed 's#[&/\]#\\&#g' | { read -r appkey; sed -i "s#^APP_KEY=.*#APP_KEY=${appkey}#" "$ENV_FILE"; }
+  fi
   chmod 0640 "$ENV_FILE"
   chown root:www-data "$ENV_FILE"
 fi
-run git clone --branch "$REPO_REF" "$REPO_URL" "$RELEASE_DIR"
-run git -C "$RELEASE_DIR" rev-parse HEAD
+
 run "$RELEASE_DIR/scripts/install-release.sh" --install
 
+# Migrations run by default; set RUN_MIGRATIONS=0 to skip explicitly.
 if [[ "$RUN_MIGRATIONS" == 1 ]]; then
   run bash -c "cd '$RELEASE_DIR/backend' && set -a && . '$ENV_FILE' && set +a && php artisan migrate --force"
+fi
+
+# Laravel writes to storage/ and bootstrap/cache/; www-data must own the release tree.
+if [[ "$DRY_RUN" == 0 ]]; then
+  chown -R www-data:www-data "$RELEASE_DIR"
+  find "$RELEASE_DIR/backend/storage" "$RELEASE_DIR/backend/bootstrap/cache" -type d -exec chmod 0775 {} + 2>/dev/null || true
 fi
 
 backend_unit="[Unit]
@@ -71,7 +128,7 @@ After=network.target
 Type=simple
 WorkingDirectory=$RELEASE_DIR/backend
 EnvironmentFile=$ENV_FILE
-ExecStart=/usr/bin/php artisan serve --host=127.0.0.1 --port=$BACKEND_PORT
+ExecStart=/usr/bin/php8.3 artisan serve --host=127.0.0.1 --port=$BACKEND_PORT
 Restart=on-failure
 RestartSec=5
 User=www-data
