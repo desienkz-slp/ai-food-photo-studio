@@ -184,6 +184,12 @@ nginx_conf="server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
     location /sanctum/ { proxy_pass http://127.0.0.1:$BACKEND_PORT; proxy_set_header Host \$host; }
+    location ~ ^/(csrf-cookie|login|logout|session|workspaces|health)(/|\$) {
+        proxy_pass http://127.0.0.1:$BACKEND_PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
     location / {
         proxy_pass http://127.0.0.1:$FRONTEND_PORT;
         proxy_set_header Host \$host;
