@@ -1,3 +1,17 @@
+# Walkthrough — History Minimalis + Retensi 7 Hari
+
+## Perubahan
+- UI riwayat dibuat **minimalis**: tombol **History** (ghost) men-toggle daftar. Riwayat tidak lagi auto-muncul.
+- Tiap item = satu baris: instruksi (truncate) + aksi **Lihat** (preview inline), **Unduh**, **Hapus**.
+- **Retensi 7 hari**: `pruneExpired()` menghapus file + row > 7 hari (dipicu lazily saat list).
+- **Delete endpoint** `DELETE /photo-edit/history/{history}` (scoped ke pemilik, throttle 30/min).
+
+## Verifikasi nyata (server)
+- List `3 items` → `DELETE id=3` → `200` → list `2 items`. ✅
+- Lokal: 10/10 vitest, build sukses, PHP lint bersih.
+
+---
+
 # Walkthrough — Hapus Panel Aset, Riwayat Hasil yang Bisa Diunduh
 
 ## Perubahan
