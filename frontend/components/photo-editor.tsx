@@ -20,6 +20,8 @@ const TEMPLATES = [
   'Tambah garnish segar (daun/cabai)',
   'Buang objek pengganggu di sekitar',
   'Gaya flat-lay top-down profesional',
+  'Dilarang mengganti objek (pertahankan semua elemen asli)',
+  'Pertahankan kontur wajah',
 ]
 
 /**
