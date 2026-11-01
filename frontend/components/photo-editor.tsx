@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 function tokenFromCookie() {
   const raw = document.cookie.split('; ').find((item) => item.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length)
@@ -36,6 +36,8 @@ export function PhotoEditor() {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [busy, setBusy] = useState(false)
   const [enhancing, setEnhancing] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [viewId, setViewId] = useState<number | null>(null)
   const [error, setError] = useState('')
 
   async function loadHistory() {
@@ -47,7 +49,23 @@ export function PhotoEditor() {
     } catch { /* history is non-critical; ignore load errors */ }
   }
 
-  useEffect(() => { loadHistory() }, [])
+  async function toggleHistory() {
+    const next = !showHistory
+    setShowHistory(next)
+    if (next) await loadHistory()
+  }
+
+  async function removeHistory(id: number) {
+    const token = tokenFromCookie()
+    if (!token) { setError('Cookie CSRF tidak tersedia. Muat ulang halaman.'); return }
+    try {
+      const response = await fetch(`/photo-edit/history/${id}`, { method: 'DELETE', credentials: 'include', headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token }, cache: 'no-store' })
+      if (!response.ok) { setError('Gagal menghapus riwayat.'); return }
+      setHistory((prev) => prev.filter((item) => item.id !== id))
+      if (viewId === id) setViewId(null)
+    } catch { setError('Gagal menghapus riwayat.') }
+  }
+
 
   function pickFile(file: File | null) {
     setError('')
@@ -135,15 +153,22 @@ export function PhotoEditor() {
       <button type="button" disabled={locked || !inputImage || (picked.length === 0 && !instruction.trim())} onClick={enhance}>{enhancing ? 'Mengembangkan…' : 'Kembangkan prompt (AI)'}</button>
       <button type="button" disabled={locked || !inputImage || !instruction.trim()} onClick={submit}>{busy ? 'Mengedit…' : 'Kirim edit'}</button>
       {(latest || inputImage) && <button type="button" disabled={locked} onClick={reset}>Mulai baru</button>}
+      <button type="button" className="ghost" aria-expanded={showHistory} onClick={toggleHistory}>History</button>
     </div>
 
-    {history.length > 0 && <div className="edit-history">
-      <h3>Riwayat hasil</h3>
-      <ol className="edit-turns">{history.map((item) => <li key={item.id}>
-        <p className="edit-instruction">{item.instruction}</p>
-        <div className="image-preview"><img src={`/photo-edit/history/${item.id}/download`} alt={`Hasil edit ${item.id}`} loading="lazy" /></div>
-        <a href={`/photo-edit/history/${item.id}/download`}>Unduh hasil {item.id}</a>
-      </li>)}</ol>
+    {showHistory && <div className="edit-history">
+      <p className="history-note">Riwayat tersimpan 7 hari.</p>
+      {history.length === 0
+        ? <p>Belum ada riwayat.</p>
+        : <ul className="history-list">{history.map((item) => <li key={item.id} className="history-row">
+            <span className="history-text" title={item.instruction}>{item.instruction}</span>
+            <span className="history-actions">
+              <button type="button" className="link" onClick={() => setViewId(viewId === item.id ? null : item.id)}>{viewId === item.id ? 'Tutup' : 'Lihat'}</button>
+              <a href={`/photo-edit/history/${item.id}/download`}>Unduh</a>
+              <button type="button" className="link danger" onClick={() => removeHistory(item.id)}>Hapus</button>
+            </span>
+            {viewId === item.id && <div className="image-preview"><img src={`/photo-edit/history/${item.id}/download`} alt={`Hasil edit ${item.id}`} loading="lazy" /></div>}
+          </li>)}</ul>}
     </div>}
   </section>
 }

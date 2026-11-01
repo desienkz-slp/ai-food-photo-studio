@@ -424,6 +424,15 @@ a[href]:hover { color: var(--burgundy-deep); border-bottom-color: var(--burgundy
 .template-option input { width: auto; margin: 0; }
 @media (max-width: 640px) { .edit-templates { grid-template-columns: 1fr; } }
 
+.history-note { color: var(--muted); font-size: .85rem; margin: 4px 0 10px; }
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.history-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.history-text { flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-actions { display: flex; gap: 12px; align-items: center; }
+.history-actions .link { background: none; border: none; padding: 0; cursor: pointer; color: var(--accent, #7a3); font: inherit; text-decoration: underline; }
+.history-actions .link.danger { color: #b3261e; }
+button.ghost { background: none; border: 1px solid var(--line); }
+
 .edit-turns { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
 .edit-turns > li { padding-top: 14px; border-top: 1px dashed var(--line); }
 .edit-instruction { font-weight: 600; margin: 0 0 8px; }

@@ -24,6 +24,7 @@ Route::middleware(['auth', 'throttle:10,1'])->post('/photo-edit', [\App\Http\Con
 Route::middleware(['auth', 'throttle:10,1'])->post('/photo-edit/enhance', [\App\Http\Controllers\PhotoEditController::class, 'enhance']);
 Route::middleware('auth')->get('/photo-edit/history', [\App\Http\Controllers\PhotoEditController::class, 'index']);
 Route::middleware('auth')->get('/photo-edit/history/{history}/download', [\App\Http\Controllers\PhotoEditController::class, 'download']);
+Route::middleware(['auth', 'throttle:30,1'])->delete('/photo-edit/history/{history}', [\App\Http\Controllers\PhotoEditController::class, 'destroy']);
 
 Route::get('/', function () {
     return response()->json([

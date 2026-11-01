@@ -21,6 +21,7 @@ class PhotoEditController extends Controller
 {
     private const MAX_UPLOAD_KB = 8192;
     private const HISTORY_LIMIT = 50;
+    private const RETENTION_DAYS = 7;
 
     public function edit(Request $request, AiPhotoEditor $editor): JsonResponse
     {
@@ -102,6 +103,8 @@ class PhotoEditController extends Controller
     /** List the current user's recent edit history (metadata only). */
     public function index(): JsonResponse
     {
+        $this->pruneExpired();
+
         $items = EditHistory::query()
             ->where('user_id', Auth::id())
             ->orderByDesc('id')
@@ -109,6 +112,33 @@ class PhotoEditController extends Controller
             ->get(['id', 'instruction', 'mime', 'ext', 'bytes', 'created_at']);
 
         return response()->json(['data' => $items]);
+    }
+
+    /** Delete a single history entry (file + row), scoped to the owner. */
+    public function destroy(EditHistory $history): JsonResponse
+    {
+        abort_unless($history->user_id === Auth::id(), 404);
+        Storage::disk('edit_results')->delete($history->path);
+        $history->delete();
+
+        return response()->json(['data' => ['id' => $history->id]]);
+    }
+
+    /**
+     * Remove history older than the retention window (files + rows). Runs lazily
+     * on list to avoid a separate scheduler; bounded by RETENTION_DAYS.
+     */
+    private function pruneExpired(): void
+    {
+        $cutoff = now()->subDays(self::RETENTION_DAYS);
+        EditHistory::query()
+            ->where('user_id', Auth::id())
+            ->where('created_at', '<', $cutoff)
+            ->get(['id', 'path'])
+            ->each(function (EditHistory $expired) {
+                Storage::disk('edit_results')->delete($expired->path);
+                $expired->delete();
+            });
     }
 
     /** Stream a single history image for download, scoped to the owner. */
