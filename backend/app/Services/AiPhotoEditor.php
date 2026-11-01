@@ -22,7 +22,10 @@ final class AiPhotoEditor
     private const RETRY_BACKOFF_MS = 800;
     private const ALLOWED_MIME = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
 
-    public function __construct(private readonly HttpFactory $http) {}
+    public function __construct(
+        private readonly HttpFactory $http,
+        private readonly AiVisionAnalyzer $vision,
+    ) {}
 
     public function edit(string $image, string $mime, string $instruction): EditedImage
     {
@@ -45,15 +48,31 @@ final class AiPhotoEditor
         }
 
         $dataUri = 'data:'.$mime.';base64,'.base64_encode($image);
-        // Force an EDIT of the provided photo rather than a fresh generation.
-        // Without this, image models tend to treat the input as a loose
-        // reference and redraw the whole scene. We instruct the model to keep
-        // the original subject, composition and framing, and apply only the
-        // requested change.
-        $editPrompt = 'Edit the provided photo. Keep the exact same subject, food, plating, '
-            .'composition, camera angle and framing as the input image. Do NOT redraw, '
-            .'replace or regenerate the dish. Apply ONLY this change: '.trim($instruction)
-            .'. Return the edited image.';
+
+        // The router's image model does not perform true image-to-image: it
+        // ignores the input pixels and generates from the text prompt alone.
+        // To stay faithful to the original photo we first ask the vision model
+        // to describe it in detail, then feed that description into the image
+        // prompt ("vision-grounded editing"). Vision is best-effort: if it fails
+        // we still proceed with the raw instruction.
+        $description = '';
+        try {
+            $description = trim($this->vision->analyze($image, $mime,
+                'Describe this food photo in rich, concrete detail for faithful recreation: '
+                .'the exact dish(es) and ingredients, plating and tableware, colors, garnishes, '
+                .'arrangement, camera angle, framing and lighting. Output a single dense paragraph, '
+                .'no preamble.'));
+        } catch (\RuntimeException $exception) {
+            $description = '';
+        }
+
+        // Force an EDIT grounded on the original photo rather than a fresh,
+        // unrelated generation.
+        $editPrompt = 'Recreate and edit this exact food photo. '
+            .($description !== '' ? 'ORIGINAL PHOTO (preserve faithfully): '.$description.' ' : '')
+            .'Keep the same dish, ingredients, plating, tableware, composition, camera angle and '
+            .'framing as described/shown. Do NOT invent a different dish or scene. '
+            .'Apply ONLY this change: '.trim($instruction).'. Return the edited image.';
         $payload = [
             'model' => $model,
             'messages' => [[
